@@ -18,8 +18,8 @@ class PriorityQueue:
     """
 
     def __init__(self):
-        self._heap: List[Tuple[float, int, Any]] = []
-        self._entry_map: Dict[Any, Tuple[float, int, Any]] = {}
+        self._heap: List[List] = []
+        self._entry_map: Dict[Any, List] = {}
         self._counter = 0
         self._size = 0
         self._REMOVED = object()
@@ -37,7 +37,7 @@ class PriorityQueue:
         """Add item or update its priority if already present."""
         if item in self._entry_map:
             self._mark_removed(item)
-        entry = (priority, self._counter, item)
+        entry = [priority, self._counter, item]
         self._counter += 1
         self._entry_map[item] = entry
         heapq.heappush(self._heap, entry)
@@ -103,11 +103,5 @@ class PriorityQueue:
 
     def _mark_removed(self, item: Any) -> None:
         entry = self._entry_map.pop(item)
-        # Replace item in the tuple with sentinel — the tuple in the heap
-        # is immutable, so we track it via entry_map and skip on pop
-        # We create a new entry with REMOVED marker
-        idx = 2
-        lst = list(entry)
-        lst[idx] = self._REMOVED
-        # The old entry remains in heap but will be skipped
+        entry[2] = self._REMOVED
         self._size -= 1
