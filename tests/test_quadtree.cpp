@@ -318,3 +318,101 @@ TEST(QuadTree, KNearestAcrossSubdivisions) {
     ASSERT_EQ(static_cast<int>(results.size()), 1);
     ASSERT_NEAR(results[0].second, 0.0, 1e-9);
 }
+
+// --- Edge cases: remove + merge, all points same location, k > tree size ---
+
+TEST(QuadTree, RemoveDecreasesSize) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds);
+
+    tree.insert(Point(10.0, 10.0));
+    tree.insert(Point(20.0, 20.0));
+    ASSERT_EQ(tree.size(), 2);
+
+    ASSERT_TRUE(tree.remove(10.0, 10.0));
+    ASSERT_EQ(tree.size(), 1);
+
+    ASSERT_TRUE(tree.remove(20.0, 20.0));
+    ASSERT_EQ(tree.size(), 0);
+}
+
+TEST(QuadTree, RemoveNonexistentReturnsFalse) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds);
+
+    tree.insert(Point(10.0, 10.0));
+
+    ASSERT_FALSE(tree.remove(99.0, 99.0));  // not in tree
+    ASSERT_FALSE(tree.remove(200.0, 200.0));  // outside boundary
+    ASSERT_EQ(tree.size(), 1);
+}
+
+TEST(QuadTree, RemoveTriggersmerge) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds, 2);  // capacity 2
+
+    // Insert 3 to force subdivision
+    tree.insert(Point(10.0, 10.0));
+    tree.insert(Point(20.0, 20.0));
+    tree.insert(Point(30.0, 30.0));
+    ASSERT_TRUE(tree.divided);
+
+    // Remove until total fits in capacity — should merge
+    tree.remove(30.0, 30.0);
+    tree.remove(20.0, 20.0);
+    ASSERT_FALSE(tree.divided);
+    ASSERT_EQ(tree.size(), 1);
+}
+
+TEST(QuadTree, AllPointsSameLocation) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds, 2);
+
+    // All at same spot — should still insert and track size
+    tree.insert(Point(25.0, 25.0));
+    tree.insert(Point(25.0, 25.0));
+    tree.insert(Point(25.0, 25.0));
+    tree.insert(Point(25.0, 25.0));
+    ASSERT_EQ(tree.size(), 4);
+
+    // k_nearest should return all 4 at distance 0
+    auto results = tree.k_nearest(25.0, 25.0, 4);
+    ASSERT_EQ(static_cast<int>(results.size()), 4);
+    for (const auto& [point, dist] : results) {
+        ASSERT_NEAR(dist, 0.0, 1e-9);
+    }
+}
+
+TEST(QuadTree, KNearestKGreaterThanSize) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds);
+
+    tree.insert(Point(10.0, 10.0));
+    tree.insert(Point(20.0, 20.0));
+
+    // Ask for 10 nearest but only 2 exist
+    auto results = tree.k_nearest(0.0, 0.0, 10);
+    ASSERT_EQ(static_cast<int>(results.size()), 2);
+}
+
+TEST(QuadTree, KNearestEmptyTree) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds);
+
+    auto results = tree.k_nearest(0.0, 0.0, 5);
+    ASSERT_EQ(static_cast<int>(results.size()), 0);
+}
+
+TEST(QuadTree, QueryRangeAfterRemoval) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds);
+
+    tree.insert(Point(10.0, 10.0));
+    tree.insert(Point(20.0, 20.0));
+    tree.remove(10.0, 10.0);
+
+    BoundingBox search(15.0, 15.0, 15.0, 15.0);  // covers both original points
+    auto found = tree.query_range(search);
+    ASSERT_EQ(static_cast<int>(found.size()), 1);
+    ASSERT_NEAR(found[0].x, 20.0, 1e-9);
+}
