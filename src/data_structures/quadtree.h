@@ -132,10 +132,29 @@ public:
     }
 
     // Find all points within the given bounding box.
-    std::vector<Point> query_range(const BoundingBox& search_box) { return {}; }
+    std::vector<Point> query_range(const BoundingBox& search_box) {
+        std::vector<Point> found;
+        _query_range(search_box, found);
+        return found;
+    }
 
     // Find all points within radius of (x, y). Returns (point, distance) pairs.
-    std::vector<std::pair<Point, double>> query_radius(double x, double y, double radius) { return {}; }
+    std::vector<std::pair<Point, double>> query_radius(double x, double y, double radius) {
+        // Use bounding box for coarse filter, then check exact distance
+        BoundingBox search_box(x, y, radius, radius);
+        std::vector<Point> candidates = query_range(search_box);
+        std::vector<std::pair<Point, double>> results;
+        double r_sq = radius * radius;
+        for (const auto& point : candidates) {
+            double dx = point.x - x;
+            double dy = point.y - y;
+            double dist_sq = dx * dx + dy * dy;
+            if (dist_sq <= r_sq) {
+                results.emplace_back(point, std::sqrt(dist_sq));
+            }
+        }
+        return results;
+    }
 
     // Find k nearest points using branch-and-bound.
     std::vector<std::pair<Point, double>> k_nearest(double x, double y, int k = 1) { return {}; }
@@ -196,7 +215,24 @@ private:
             divided = false;
         }
     }
-    void _query_range(const BoundingBox& search_box, std::vector<Point>& found) {}
+    void _query_range(const BoundingBox& search_box, std::vector<Point>& found) {
+        if (!boundary.intersects(search_box)) {
+            return;
+        }
+
+        for (const auto& point : points) {
+            if (search_box.contains(point.x, point.y)) {
+                found.push_back(point);
+            }
+        }
+
+        if (divided) {
+            nw->_query_range(search_box, found);
+            ne->_query_range(search_box, found);
+            sw->_query_range(search_box, found);
+            se->_query_range(search_box, found);
+        }
+    }
     void _k_nearest(double x, double y, int k, std::vector<std::pair<double, Point>>& best) {}
 };
 
