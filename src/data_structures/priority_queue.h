@@ -24,13 +24,46 @@ public:
     }
 
     // Add item or update its priority if already present.
-    void push(const std::string& item, double priority) {}
+    void push(const std::string& item, double priority) {
+        if (_entry_map.find(item) != _entry_map.end()) {
+            _mark_removed(item);
+        }
+        Entry entry{priority, _counter, item, false};
+        _counter++;
+        _heap.push_back(entry);
+        int idx = static_cast<int>(_heap.size()) - 1;
+        _entry_map[item] = idx;
+        _sift_up(idx);
+        _size++;
+    }
 
     // Remove and return item with lowest priority.
-    std::optional<std::string> pop() { return std::nullopt; }
+    std::optional<std::string> pop() {
+        while (!_heap.empty()) {
+            Entry top = _heap[0];
+            _remove_top();
+            if (!top.removed) {
+                _entry_map.erase(top.item);
+                _size--;
+                return top.item;
+            }
+        }
+        return std::nullopt;
+    }
 
     // Remove and return (item, priority) with lowest priority.
-    std::optional<std::pair<std::string, double>> pop_with_priority() { return std::nullopt; }
+    std::optional<std::pair<std::string, double>> pop_with_priority() {
+        while (!_heap.empty()) {
+            Entry top = _heap[0];
+            _remove_top();
+            if (!top.removed) {
+                _entry_map.erase(top.item);
+                _size--;
+                return std::pair{top.item, top.priority};
+            }
+        }
+        return std::nullopt;
+    }
 
     // Return item with lowest priority without removing it.
     std::optional<std::string> peek() { return std::nullopt; }
@@ -107,6 +140,28 @@ private:
         std::swap(_heap[i], _heap[j]);
         if (!_heap[i].removed) _entry_map[_heap[i].item] = i;
         if (!_heap[j].removed) _entry_map[_heap[j].item] = j;
+    }
+
+    void _mark_removed(const std::string& item) {
+        auto it = _entry_map.find(item);
+        if (it != _entry_map.end()) {
+            _heap[it->second].removed = true;
+            _entry_map.erase(it);
+            _size--;
+        }
+    }
+
+    void _remove_top() {
+        if (_heap.size() == 1) {
+            _heap.pop_back();
+            return;
+        }
+        _heap[0] = std::move(_heap.back());
+        _heap.pop_back();
+        if (!_heap.empty()) {
+            if (!_heap[0].removed) _entry_map[_heap[0].item] = 0;
+            _sift_down(0);
+        }
     }
 };
 
