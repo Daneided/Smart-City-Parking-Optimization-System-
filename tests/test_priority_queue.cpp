@@ -81,3 +81,57 @@ TEST(PriorityQueue, FIFOBreaksTies) {
     ASSERT_EQ(pq.pop().value(), "second");
     ASSERT_EQ(pq.pop().value(), "third");
 }
+
+// --- Commit 4: decrease_key and contains tests ---
+
+TEST(PriorityQueue, ContainsFindsItems) {
+    PriorityQueue pq;
+    ASSERT_FALSE(pq.contains("a"));
+
+    pq.push("a", 1.0);
+    ASSERT_TRUE(pq.contains("a"));
+    ASSERT_FALSE(pq.contains("b"));
+
+    pq.pop();
+    ASSERT_FALSE(pq.contains("a"));
+}
+
+TEST(PriorityQueue, DecreaseKeyLowersPriority) {
+    PriorityQueue pq;
+    pq.push("a", 5.0);
+    pq.push("b", 3.0);
+
+    // b is currently first (priority 3). Decrease a to 1 so it comes first.
+    bool ok = pq.decrease_key("a", 1.0);
+    ASSERT_TRUE(ok);
+
+    ASSERT_EQ(pq.pop().value(), "a");
+    ASSERT_EQ(pq.pop().value(), "b");
+}
+
+TEST(PriorityQueue, DecreaseKeyRejectsHigherPriority) {
+    PriorityQueue pq;
+    pq.push("a", 2.0);
+
+    bool ok = pq.decrease_key("a", 5.0);  // 5 > 2, should fail
+    ASSERT_FALSE(ok);
+
+    ASSERT_NEAR(pq.peek_priority().value(), 2.0, 1e-9);
+}
+
+TEST(PriorityQueue, DecreaseKeyNonexistentReturnsFalse) {
+    PriorityQueue pq;
+    pq.push("a", 1.0);
+
+    ASSERT_FALSE(pq.decrease_key("z", 0.5));
+}
+
+TEST(PriorityQueue, GetPriority) {
+    PriorityQueue pq;
+    pq.push("a", 3.0);
+    pq.push("b", 7.0);
+
+    ASSERT_NEAR(pq.get_priority("a").value(), 3.0, 1e-9);
+    ASSERT_NEAR(pq.get_priority("b").value(), 7.0, 1e-9);
+    ASSERT_FALSE(pq.get_priority("z").has_value());
+}
