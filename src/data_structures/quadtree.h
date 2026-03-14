@@ -80,7 +80,28 @@ public:
     int size() const { return _size; }
 
     // Insert a point. Returns false if point is outside boundary.
-    bool insert(const Point& point) { return false; }
+    bool insert(const Point& point) {
+        if (!boundary.contains(point.x, point.y)) {
+            return false;
+        }
+
+        if (!divided && static_cast<int>(points.size()) < capacity) {
+            points.push_back(point);
+            _size++;
+            return true;
+        }
+
+        if (!divided) {
+            _subdivide();
+        }
+
+        if (nw->insert(point)) { _size++; return true; }
+        if (ne->insert(point)) { _size++; return true; }
+        if (sw->insert(point)) { _size++; return true; }
+        if (se->insert(point)) { _size++; return true; }
+
+        return false;
+    }
 
     // Remove a point by coordinates and optional data match.
     bool remove(double x, double y) { return false; }
@@ -106,7 +127,26 @@ public:
 private:
     int _size;
 
-    void _subdivide() {}
+    void _subdivide() {
+        auto [sw_b, se_b, nw_b, ne_b] = boundary.subdivide();
+        sw = std::make_unique<QuadTree>(sw_b, capacity);
+        se = std::make_unique<QuadTree>(se_b, capacity);
+        nw = std::make_unique<QuadTree>(nw_b, capacity);
+        ne = std::make_unique<QuadTree>(ne_b, capacity);
+        divided = true;
+
+        // Re-insert existing points into children
+        std::vector<Point> remaining = std::move(points);
+        points.clear();
+        for (const auto& point : remaining) {
+            bool inserted = nw->insert(point) || ne->insert(point) ||
+                            sw->insert(point) || se->insert(point);
+            if (!inserted) {
+                // Edge case: point sits exactly on boundary, keep in parent
+                points.push_back(point);
+            }
+        }
+    }
     void _try_merge() {}
     void _query_range(const BoundingBox& search_box, std::vector<Point>& found) {}
     void _k_nearest(double x, double y, int k, std::vector<std::pair<double, Point>>& best) {}
