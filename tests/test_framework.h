@@ -67,4 +67,49 @@ struct AssertionFailure {
         }                                                                      \
     } while (0)
 
+#define ASSERT_NEAR(a, b, tol)                                                 \
+    do {                                                                        \
+        double _a = (a); double _b = (b);                                      \
+        if (std::abs(_a - _b) > (tol)) {                                       \
+            throw AssertionFailure{__FILE__, __LINE__,                          \
+                "ASSERT_NEAR failed: |" #a " - " #b "| > " #tol};             \
+        }                                                                      \
+    } while (0)
+
+#define ASSERT_THROWS(expr, exception_type)                                    \
+    do {                                                                        \
+        bool _caught = false;                                                  \
+        try { expr; } catch (const exception_type&) { _caught = true; }        \
+        if (!_caught) {                                                        \
+            throw AssertionFailure{__FILE__, __LINE__,                          \
+                "ASSERT_THROWS failed: " #expr " did not throw " #exception_type}; \
+        }                                                                      \
+    } while (0)
+
+// Run all registered tests. Returns number of failures.
+inline int run_all_tests() {
+    int passed = 0;
+    int failed = 0;
+    for (const auto& tc : test_registry()) {
+        std::string label = tc.suite + "::" + tc.name;
+        try {
+            tc.func();
+            std::cout << "  [PASS] " << label << std::endl;
+            passed++;
+        } catch (const AssertionFailure& e) {
+            std::cout << "  [FAIL] " << label << std::endl;
+            std::cout << "         " << e.file << ":" << e.line
+                      << " — " << e.message << std::endl;
+            failed++;
+        } catch (const std::exception& e) {
+            std::cout << "  [FAIL] " << label << " (exception: "
+                      << e.what() << ")" << std::endl;
+            failed++;
+        }
+    }
+    std::cout << "\nResults: " << passed << " passed, " << failed
+              << " failed, " << (passed + failed) << " total" << std::endl;
+    return failed;
+}
+
 #endif // TEST_FRAMEWORK_H
