@@ -43,3 +43,23 @@ public:
 private:
     Graph* _graph;
 };
+
+// Concrete pathfinder using A* with euclidean distance heuristic.
+// Focuses search toward the goal; optimal when heuristic is admissible.
+class AStarPathfinder : public IPathfinder {
+public:
+    AStarPathfinder(Graph* graph) : _graph(graph) {}
+
+    std::optional<std::pair<std::vector<std::string>, double>>
+    find_path(const std::string& start, const std::string& end) override {
+        if (_graph == nullptr) return std::nullopt;
+        return _graph->a_star(start, end);
+    }
+
+    std::string algorithm_name() const override {
+        return "A*";
+    }
+
+private:
+    Graph* _graph;
+};
