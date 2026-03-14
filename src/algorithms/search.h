@@ -33,6 +33,34 @@ public:
         : _spatial_index(spatial_index)
         , _availability_checker(std::move(availability_checker)) {}
 
+    std::optional<SearchResult> search_nearest(
+            std::pair<double, double> location,
+            std::optional<std::string> spot_type = std::nullopt) {
+        if (_spatial_index == nullptr) return std::nullopt;
+
+        int tree_size = _spatial_index->size();
+        if (tree_size == 0) return std::nullopt;
+
+        double x = location.first;
+        double y = location.second;
+        int k = std::min(10, tree_size);
+
+        while (true) {
+            auto candidates = _spatial_index->k_nearest(x, y, k);
+            for (auto& [point, distance] : candidates) {
+                auto [sid, zid, stype] = _unpack_point(point);
+
+                if (_availability_checker && !_availability_checker(sid)) continue;
+                if (spot_type.has_value() && stype != spot_type.value()) continue;
+
+                return SearchResult{sid, distance, zid, distance};
+            }
+
+            if (k >= tree_size) return std::nullopt;
+            k = std::min(k * 2, tree_size);
+        }
+    }
+
     std::vector<SearchResult> search(const SearchCriteria& criteria) {
         if (_spatial_index == nullptr) return {};
 
