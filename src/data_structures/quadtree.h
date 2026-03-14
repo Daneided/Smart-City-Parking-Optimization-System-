@@ -103,8 +103,33 @@ public:
         return false;
     }
 
-    // Remove a point by coordinates and optional data match.
-    bool remove(double x, double y) { return false; }
+    // Remove a point by coordinates. Returns true if a point was removed.
+    bool remove(double x, double y) {
+        if (!boundary.contains(x, y)) {
+            return false;
+        }
+
+        for (auto it = points.begin(); it != points.end(); ++it) {
+            if (it->x == x && it->y == y) {
+                points.erase(it);
+                _size--;
+                return true;
+            }
+        }
+
+        if (divided) {
+            QuadTree* children[] = {nw.get(), ne.get(), sw.get(), se.get()};
+            for (auto* child : children) {
+                if (child->remove(x, y)) {
+                    _size--;
+                    _try_merge();
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 
     // Find all points within the given bounding box.
     std::vector<Point> query_range(const BoundingBox& search_box) { return {}; }
@@ -147,7 +172,30 @@ private:
             }
         }
     }
-    void _try_merge() {}
+    // Collapse children back into parent if total points fit in capacity.
+    void _try_merge() {
+        if (!divided) {
+            return;
+        }
+
+        int total = static_cast<int>(nw->points.size() + ne->points.size() +
+                                     sw->points.size() + se->points.size());
+
+        // Only merge if none of the children are subdivided
+        if (total <= capacity &&
+                !nw->divided && !ne->divided &&
+                !sw->divided && !se->divided) {
+            points.insert(points.end(), nw->points.begin(), nw->points.end());
+            points.insert(points.end(), ne->points.begin(), ne->points.end());
+            points.insert(points.end(), sw->points.begin(), sw->points.end());
+            points.insert(points.end(), se->points.begin(), se->points.end());
+            nw.reset();
+            ne.reset();
+            sw.reset();
+            se.reset();
+            divided = false;
+        }
+    }
     void _query_range(const BoundingBox& search_box, std::vector<Point>& found) {}
     void _k_nearest(double x, double y, int k, std::vector<std::pair<double, Point>>& best) {}
 };
