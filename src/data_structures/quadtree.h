@@ -7,8 +7,10 @@
 #include <any>
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <string>
 #include <tuple>
+#include <vector>
 
 // A 2D point with associated data (e.g. spot_id)
 struct Point {
@@ -65,6 +67,49 @@ struct BoundingBox {
             BoundingBox(cx + qw, cy + qh, qw, qh),  // NE
         };
     }
+};
+
+// QuadTree for 2D spatial indexing.
+// Stores points and supports insert/remove, range query, and k-nearest neighbor search.
+// Capacity: max points per leaf before subdivision.
+class QuadTree {
+public:
+    QuadTree(const BoundingBox& boundary, int capacity = 4)
+        : boundary(boundary), capacity(capacity), divided(false), _size(0) {}
+
+    int size() const { return _size; }
+
+    // Insert a point. Returns false if point is outside boundary.
+    bool insert(const Point& point) { return false; }
+
+    // Remove a point by coordinates and optional data match.
+    bool remove(double x, double y) { return false; }
+
+    // Find all points within the given bounding box.
+    std::vector<Point> query_range(const BoundingBox& search_box) { return {}; }
+
+    // Find all points within radius of (x, y). Returns (point, distance) pairs.
+    std::vector<std::pair<Point, double>> query_radius(double x, double y, double radius) { return {}; }
+
+    // Find k nearest points using branch-and-bound.
+    std::vector<std::pair<Point, double>> k_nearest(double x, double y, int k = 1) { return {}; }
+
+    BoundingBox boundary;
+    int capacity;
+    std::vector<Point> points;
+    bool divided;
+    std::unique_ptr<QuadTree> nw;
+    std::unique_ptr<QuadTree> ne;
+    std::unique_ptr<QuadTree> sw;
+    std::unique_ptr<QuadTree> se;
+
+private:
+    int _size;
+
+    void _subdivide() {}
+    void _try_merge() {}
+    void _query_range(const BoundingBox& search_box, std::vector<Point>& found) {}
+    void _k_nearest(double x, double y, int k, std::vector<std::pair<double, Point>>& best) {}
 };
 
 #endif // QUADTREE_H
