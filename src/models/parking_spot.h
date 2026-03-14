@@ -65,6 +65,53 @@ public:
     double x() const { return location.first; }
     double y() const { return location.second; }
 
+    void change_status(SpotStatus new_status,
+                       std::optional<TimePoint> timestamp = std::nullopt) {
+        if (new_status == status) return;
+
+        SpotStatus old_status = status;
+        TimePoint ts = timestamp.value_or(std::chrono::system_clock::now());
+
+        status = new_status;
+        status_changed_at = ts;
+        _status_history.emplace_back(new_status, ts);
+
+        if (_on_status_change) {
+            _on_status_change(spot_id, old_status, new_status);
+        }
+    }
+
+    void occupy(std::optional<TimePoint> timestamp = std::nullopt) {
+        change_status(SpotStatus::OCCUPIED, timestamp);
+    }
+
+    void release(std::optional<TimePoint> timestamp = std::nullopt) {
+        change_status(SpotStatus::AVAILABLE, timestamp);
+    }
+
+    void reserve(std::optional<TimePoint> timestamp = std::nullopt) {
+        change_status(SpotStatus::RESERVED, timestamp);
+    }
+
+    void set_maintenance(std::optional<TimePoint> timestamp = std::nullopt) {
+        change_status(SpotStatus::MAINTENANCE, timestamp);
+    }
+
+    std::vector<std::pair<SpotStatus, TimePoint>> get_status_history() const {
+        return _status_history;
+    }
+
+    double duration_in_current_status() const {
+        if (!status_changed_at.has_value()) return 0.0;
+        auto now = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed = now - status_changed_at.value();
+        return elapsed.count();
+    }
+
+    void register_status_callback(StatusCallback callback) {
+        _on_status_change = std::move(callback);
+    }
+
 private:
     std::vector<std::pair<SpotStatus, TimePoint>> _status_history;
     StatusCallback _on_status_change;
