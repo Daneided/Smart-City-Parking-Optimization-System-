@@ -157,7 +157,18 @@ public:
     }
 
     // Find k nearest points using branch-and-bound.
-    std::vector<std::pair<Point, double>> k_nearest(double x, double y, int k = 1) { return {}; }
+    // Returns list of (point, distance) sorted by distance ascending.
+    std::vector<std::pair<Point, double>> k_nearest(double x, double y, int k = 1) {
+        // best stores (distance, point), kept sorted, max length k
+        std::vector<std::pair<double, Point>> best;
+        _k_nearest(x, y, k, best);
+        std::vector<std::pair<Point, double>> result;
+        result.reserve(best.size());
+        for (const auto& [d, p] : best) {
+            result.emplace_back(p, d);
+        }
+        return result;
+    }
 
     BoundingBox boundary;
     int capacity;
@@ -233,7 +244,43 @@ private:
             se->_query_range(search_box, found);
         }
     }
-    void _k_nearest(double x, double y, int k, std::vector<std::pair<double, Point>>& best) {}
+    void _k_nearest(double x, double y, int k, std::vector<std::pair<double, Point>>& best) {
+        double min_dist = boundary.min_distance_to(x, y);
+        if (static_cast<int>(best.size()) >= k && min_dist > best.back().first) {
+            return;  // prune: this subtree can't beat current k-th best
+        }
+
+        for (const auto& point : points) {
+            double dist = point.distance_to(x, y);
+            if (static_cast<int>(best.size()) < k) {
+                best.emplace_back(dist, point);
+                std::sort(best.begin(), best.end(),
+                          [](const auto& a, const auto& b) { return a.first < b.first; });
+            } else if (dist < best.back().first) {
+                best.back() = {dist, point};
+                std::sort(best.begin(), best.end(),
+                          [](const auto& a, const auto& b) { return a.first < b.first; });
+            }
+        }
+
+        if (!divided) {
+            return;
+        }
+
+        // Visit children in order of proximity to query point for better pruning
+        std::vector<std::pair<double, QuadTree*>> children = {
+            {nw->boundary.min_distance_to(x, y), nw.get()},
+            {ne->boundary.min_distance_to(x, y), ne.get()},
+            {sw->boundary.min_distance_to(x, y), sw.get()},
+            {se->boundary.min_distance_to(x, y), se.get()},
+        };
+        std::sort(children.begin(), children.end(),
+                  [](const auto& a, const auto& b) { return a.first < b.first; });
+
+        for (const auto& [_, child] : children) {
+            child->_k_nearest(x, y, k, best);
+        }
+    }
 };
 
 #endif // QUADTREE_H
