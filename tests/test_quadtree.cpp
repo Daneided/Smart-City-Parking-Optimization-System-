@@ -91,3 +91,63 @@ TEST(BoundingBox, SubdivideProducesQuadrants) {
     ASSERT_NEAR(ne.cx, 5.0, 1e-9);
     ASSERT_NEAR(ne.cy, 5.0, 1e-9);
 }
+
+// --- QuadTree insert + size tracking ---
+
+TEST(QuadTree, InsertAndSize) {
+    BoundingBox bounds(5.0, 5.0, 5.0, 5.0);  // [0,10] x [0,10]
+    QuadTree tree(bounds);
+
+    ASSERT_EQ(tree.size(), 0);
+
+    ASSERT_TRUE(tree.insert(Point(1.0, 1.0)));
+    ASSERT_EQ(tree.size(), 1);
+
+    ASSERT_TRUE(tree.insert(Point(3.0, 3.0)));
+    ASSERT_TRUE(tree.insert(Point(7.0, 7.0)));
+    ASSERT_EQ(tree.size(), 3);
+}
+
+TEST(QuadTree, InsertOutsideBoundaryFails) {
+    BoundingBox bounds(5.0, 5.0, 5.0, 5.0);
+    QuadTree tree(bounds);
+
+    ASSERT_FALSE(tree.insert(Point(-1.0, 5.0)));
+    ASSERT_FALSE(tree.insert(Point(5.0, 11.0)));
+    ASSERT_FALSE(tree.insert(Point(100.0, 100.0)));
+    ASSERT_EQ(tree.size(), 0);
+}
+
+TEST(QuadTree, InsertTriggersSubdivision) {
+    BoundingBox bounds(5.0, 5.0, 5.0, 5.0);
+    QuadTree tree(bounds, 2);  // capacity 2 — subdivides after 2 points
+
+    tree.insert(Point(1.0, 1.0));
+    tree.insert(Point(2.0, 2.0));
+    ASSERT_FALSE(tree.divided);
+
+    tree.insert(Point(3.0, 3.0));  // triggers subdivision
+    ASSERT_TRUE(tree.divided);
+    ASSERT_EQ(tree.size(), 3);
+}
+
+TEST(QuadTree, InsertOnBoundaryEdge) {
+    BoundingBox bounds(5.0, 5.0, 5.0, 5.0);  // [0,10] x [0,10]
+    QuadTree tree(bounds);
+
+    ASSERT_TRUE(tree.insert(Point(0.0, 0.0)));   // corner
+    ASSERT_TRUE(tree.insert(Point(10.0, 10.0))); // corner
+    ASSERT_TRUE(tree.insert(Point(5.0, 0.0)));   // edge
+    ASSERT_EQ(tree.size(), 3);
+}
+
+TEST(QuadTree, InsertManyPointsSizeTracking) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);  // [0,100] x [0,100]
+    QuadTree tree(bounds, 4);
+
+    for (int i = 1; i <= 50; ++i) {
+        double v = static_cast<double>(i);
+        ASSERT_TRUE(tree.insert(Point(v, v)));
+    }
+    ASSERT_EQ(tree.size(), 50);
+}
