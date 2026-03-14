@@ -66,17 +66,35 @@ public:
     }
 
     // Return item with lowest priority without removing it.
-    std::optional<std::string> peek() { return std::nullopt; }
+    std::optional<std::string> peek() {
+        _clean_top();
+        if (_heap.empty()) return std::nullopt;
+        return _heap[0].item;
+    }
 
     // Return the lowest priority value without removing.
-    std::optional<double> peek_priority() { return std::nullopt; }
+    std::optional<double> peek_priority() {
+        _clean_top();
+        if (_heap.empty()) return std::nullopt;
+        return _heap[0].priority;
+    }
 
     // Get current priority of an item, or nullopt if not present.
-    std::optional<double> get_priority(const std::string& item) { return std::nullopt; }
+    std::optional<double> get_priority(const std::string& item) {
+        auto it = _entry_map.find(item);
+        if (it == _entry_map.end()) return std::nullopt;
+        return _heap[it->second].priority;
+    }
 
     // Decrease priority of an existing item.
     // Returns false if item not found or new priority is not lower.
-    bool decrease_key(const std::string& item, double new_priority) { return false; }
+    bool decrease_key(const std::string& item, double new_priority) {
+        auto it = _entry_map.find(item);
+        if (it == _entry_map.end()) return false;
+        if (new_priority >= _heap[it->second].priority) return false;
+        push(item, new_priority);
+        return true;
+    }
 
 private:
     struct Entry {
@@ -161,6 +179,13 @@ private:
         if (!_heap.empty()) {
             if (!_heap[0].removed) _entry_map[_heap[0].item] = 0;
             _sift_down(0);
+        }
+    }
+
+    // Discard removed entries from the top of the heap.
+    void _clean_top() {
+        while (!_heap.empty() && _heap[0].removed) {
+            _remove_top();
         }
     }
 };
