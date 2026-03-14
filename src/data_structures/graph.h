@@ -115,25 +115,130 @@ public:
     }
 
     // Shortest path using Dijkstra's algorithm.
+    // Returns (path, total_distance) or nullopt if no path exists.
     std::optional<std::pair<std::vector<std::string>, double>>
-    dijkstra(const std::string& start, const std::string& end) const { return std::nullopt; }
+    dijkstra(const std::string& start, const std::string& end) const {
+        if (_adjacency.find(start) == _adjacency.end() ||
+            _adjacency.find(end) == _adjacency.end()) {
+            return std::nullopt;
+        }
+
+        std::unordered_map<std::string, double> dist;
+        std::unordered_map<std::string, std::string> prev;
+        std::unordered_set<std::string> visited;
+        dist[start] = 0.0;
+
+        // Min-heap: (distance, node_id)
+        using Entry = std::pair<double, std::string>;
+        std::priority_queue<Entry, std::vector<Entry>, std::greater<Entry>> heap;
+        heap.push({0.0, start});
+
+        while (!heap.empty()) {
+            auto [d, node] = heap.top();
+            heap.pop();
+
+            if (visited.count(node)) continue;
+            visited.insert(node);
+
+            if (node == end) {
+                return std::pair{_reconstruct_path(prev, end), d};
+            }
+
+            auto adj_it = _adjacency.find(node);
+            if (adj_it == _adjacency.end()) continue;
+
+            for (const auto& [neighbor, weight] : adj_it->second) {
+                if (visited.count(neighbor)) continue;
+                double new_dist = d + weight;
+                if (dist.find(neighbor) == dist.end() || new_dist < dist[neighbor]) {
+                    dist[neighbor] = new_dist;
+                    prev[neighbor] = node;
+                    heap.push({new_dist, neighbor});
+                }
+            }
+        }
+
+        return std::nullopt;
+    }
 
     // A* search using euclidean distance heuristic. Falls back to Dijkstra if positions not set.
     std::optional<std::pair<std::vector<std::string>, double>>
-    a_star(const std::string& start, const std::string& end) const { return std::nullopt; }
+    a_star(const std::string& start, const std::string& end) const {
+        if (_adjacency.find(start) == _adjacency.end() ||
+            _adjacency.find(end) == _adjacency.end()) {
+            return std::nullopt;
+        }
+
+        auto end_pos_it = _positions.find(end);
+        if (end_pos_it == _positions.end()) {
+            return dijkstra(start, end);
+        }
+        auto end_pos = end_pos_it->second;
+
+        std::unordered_map<std::string, double> g_score;
+        std::unordered_map<std::string, std::string> prev;
+        std::unordered_set<std::string> visited;
+        g_score[start] = 0.0;
+
+        // Min-heap: (f_score, node_id)
+        using Entry = std::pair<double, std::string>;
+        std::priority_queue<Entry, std::vector<Entry>, std::greater<Entry>> heap;
+        heap.push({_heuristic(start, end_pos), start});
+
+        while (!heap.empty()) {
+            auto [_, node] = heap.top();
+            heap.pop();
+
+            if (visited.count(node)) continue;
+            visited.insert(node);
+
+            if (node == end) {
+                return std::pair{_reconstruct_path(prev, end), g_score[end]};
+            }
+
+            auto adj_it = _adjacency.find(node);
+            if (adj_it == _adjacency.end()) continue;
+
+            for (const auto& [neighbor, weight] : adj_it->second) {
+                if (visited.count(neighbor)) continue;
+                double tentative_g = g_score[node] + weight;
+                if (g_score.find(neighbor) == g_score.end() || tentative_g < g_score[neighbor]) {
+                    g_score[neighbor] = tentative_g;
+                    prev[neighbor] = node;
+                    double f = tentative_g + _heuristic(neighbor, end_pos);
+                    heap.push({f, neighbor});
+                }
+            }
+        }
+
+        return std::nullopt;
+    }
 
 private:
     std::unordered_map<std::string, std::unordered_map<std::string, double>> _adjacency;
     std::unordered_map<std::string, std::pair<double, double>> _positions;
 
     double _heuristic(const std::string& node, std::pair<double, double> target_pos) const {
-        return 0.0;
+        auto it = _positions.find(node);
+        if (it == _positions.end()) return 0.0;
+        double dx = it->second.first - target_pos.first;
+        double dy = it->second.second - target_pos.second;
+        return std::sqrt(dx * dx + dy * dy);
     }
 
     std::vector<std::string> _reconstruct_path(
         const std::unordered_map<std::string, std::string>& prev,
         const std::string& end) const {
-        return {};
+        std::vector<std::string> path;
+        std::string node = end;
+        while (true) {
+            path.push_back(node);
+            auto it = prev.find(node);
+            if (it == prev.end()) break;
+            node = it->second;
+        }
+        std::reverse(path.begin(), path.end());
+        return path;
     }
 };
 
