@@ -10,6 +10,7 @@
 #include <limits>
 
 #include "../data_structures/graph.h"
+#include "pathfinder.h"
 
 struct Route {
     std::vector<std::string> nodes;
@@ -27,8 +28,8 @@ class RouteOptimizer {
 public:
     static constexpr double PARKING_SPEED = 5.0;
 
-    RouteOptimizer(Graph* parking_graph = nullptr)
-        : _graph(parking_graph) {}
+    RouteOptimizer(IPathfinder* pathfinder = nullptr, Graph* graph = nullptr)
+        : _pathfinder(pathfinder), _graph(graph) {}
 
     void register_exit(const std::string& exit_id) {
         _exits.insert(exit_id);
@@ -36,8 +37,8 @@ public:
 
     std::optional<Route> find_route_to_spot(const std::string& entrance_id,
                                             const std::string& spot_id) {
-        if (_graph == nullptr) return std::nullopt;
-        auto result = _graph->a_star(entrance_id, spot_id);
+        if (_pathfinder == nullptr) return std::nullopt;
+        auto result = _pathfinder->find_path(entrance_id, spot_id);
         if (!result.has_value()) return std::nullopt;
         auto& [path, distance] = result.value();
         return Route{path, distance, distance / PARKING_SPEED};
@@ -45,10 +46,10 @@ public:
 
     std::optional<Route> find_route_to_exit(const std::string& spot_id,
                                             std::optional<std::string> preferred_exit = std::nullopt) {
-        if (_graph == nullptr) return std::nullopt;
+        if (_pathfinder == nullptr) return std::nullopt;
 
         if (preferred_exit.has_value()) {
-            auto result = _graph->a_star(spot_id, preferred_exit.value());
+            auto result = _pathfinder->find_path(spot_id, preferred_exit.value());
             if (!result.has_value()) return std::nullopt;
             auto& [path, distance] = result.value();
             return Route{path, distance, distance / PARKING_SPEED};
@@ -56,7 +57,7 @@ public:
 
         std::optional<Route> best = std::nullopt;
         for (const auto& exit_id : _exits) {
-            auto result = _graph->a_star(spot_id, exit_id);
+            auto result = _pathfinder->find_path(spot_id, exit_id);
             if (!result.has_value()) continue;
             auto& [path, distance] = result.value();
             if (!best.has_value() || distance < best->total_distance) {
@@ -75,7 +76,13 @@ public:
         }
     }
 
+    std::string pathfinder_name() const {
+        if (_pathfinder == nullptr) return "none";
+        return _pathfinder->algorithm_name();
+    }
+
 private:
+    IPathfinder* _pathfinder;
     Graph* _graph;
     std::unordered_set<std::string> _exits;
 };

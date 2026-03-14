@@ -8,6 +8,7 @@
 #include "models/parking_spot.h"
 #include "models/availability_tracker.h"
 #include "algorithms/search.h"
+#include "algorithms/pathfinder.h"
 #include "algorithms/optimization.h"
 
 int main() {
@@ -92,13 +93,18 @@ int main() {
     graph.add_edge_undirected("intersect2", "S3", 5.0);
     graph.add_edge_undirected("intersect2", "exit", 7.07);
 
-    // --- Optimization: RouteOptimizer ---
-    RouteOptimizer router(&graph);
+    // --- Optimization: RouteOptimizer with polymorphic pathfinder ---
+    AStarPathfinder astar_pf(&graph);
+    DijkstraPathfinder dijkstra_pf(&graph);
+
+    RouteOptimizer router(&astar_pf, &graph);
     router.register_exit("exit");
+
+    std::cout << "\nUsing pathfinder: " << router.pathfinder_name() << std::endl;
 
     auto route = router.find_route_to_spot("entrance", "S1");
     if (route.has_value()) {
-        std::cout << "\nRoute entrance -> S1: ";
+        std::cout << "Route entrance -> S1: ";
         for (size_t i = 0; i < route->nodes.size(); ++i) {
             if (i > 0) std::cout << " -> ";
             std::cout << route->nodes[i];
@@ -115,6 +121,22 @@ int main() {
             std::cout << exit_route->nodes[i];
         }
         std::cout << " (dist=" << exit_route->total_distance << ")" << std::endl;
+    }
+
+    // Swap to Dijkstra via polymorphism
+    RouteOptimizer router_dijkstra(&dijkstra_pf, &graph);
+    router_dijkstra.register_exit("exit");
+    std::cout << "\nUsing pathfinder: " << router_dijkstra.pathfinder_name() << std::endl;
+
+    auto route_d = router_dijkstra.find_route_to_spot("entrance", "S1");
+    if (route_d.has_value()) {
+        std::cout << "Route entrance -> S1: ";
+        for (size_t i = 0; i < route_d->nodes.size(); ++i) {
+            if (i > 0) std::cout << " -> ";
+            std::cout << route_d->nodes[i];
+        }
+        std::cout << " (dist=" << route_d->total_distance
+                  << ", time=" << route_d->estimated_time << "s)" << std::endl;
     }
 
     // --- Optimization: AllocationOptimizer ---
