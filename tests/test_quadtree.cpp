@@ -151,3 +151,170 @@ TEST(QuadTree, InsertManyPointsSizeTracking) {
     }
     ASSERT_EQ(tree.size(), 50);
 }
+
+// --- query_range and query_radius tests ---
+
+TEST(QuadTree, QueryRangeFindsPointsInBox) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);  // [0,100] x [0,100]
+    QuadTree tree(bounds);
+
+    tree.insert(Point(10.0, 10.0));
+    tree.insert(Point(20.0, 20.0));
+    tree.insert(Point(80.0, 80.0));
+
+    // Search box covers [5,25] x [5,25] — should find first two
+    BoundingBox search(15.0, 15.0, 10.0, 10.0);
+    auto found = tree.query_range(search);
+    ASSERT_EQ(static_cast<int>(found.size()), 2);
+}
+
+TEST(QuadTree, QueryRangeEmptyRegion) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds);
+
+    tree.insert(Point(10.0, 10.0));
+    tree.insert(Point(20.0, 20.0));
+
+    // Search box [70,90] x [70,90] — no points
+    BoundingBox search(80.0, 80.0, 10.0, 10.0);
+    auto found = tree.query_range(search);
+    ASSERT_EQ(static_cast<int>(found.size()), 0);
+}
+
+TEST(QuadTree, QueryRangeEntireTree) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds);
+
+    tree.insert(Point(10.0, 10.0));
+    tree.insert(Point(50.0, 50.0));
+    tree.insert(Point(90.0, 90.0));
+
+    // Search the entire boundary
+    auto found = tree.query_range(bounds);
+    ASSERT_EQ(static_cast<int>(found.size()), 3);
+}
+
+TEST(QuadTree, QueryRadiusFindsNearbyPoints) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds);
+
+    tree.insert(Point(10.0, 10.0));  // dist to origin ~14.14
+    tree.insert(Point(5.0, 5.0));    // dist to origin ~7.07
+    tree.insert(Point(90.0, 90.0));  // far away
+
+    auto results = tree.query_radius(0.0, 0.0, 15.0);
+    ASSERT_EQ(static_cast<int>(results.size()), 2);
+
+    // Verify distances are correct
+    for (const auto& [point, dist] : results) {
+        ASSERT_NEAR(dist, point.distance_to(0.0, 0.0), 1e-9);
+    }
+}
+
+TEST(QuadTree, QueryRadiusExcludesOutside) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds);
+
+    tree.insert(Point(10.0, 0.0));  // dist to origin = 10
+    tree.insert(Point(20.0, 0.0));  // dist to origin = 20
+
+    auto results = tree.query_radius(0.0, 0.0, 15.0);
+    ASSERT_EQ(static_cast<int>(results.size()), 1);
+    ASSERT_NEAR(results[0].first.x, 10.0, 1e-9);
+}
+
+TEST(QuadTree, QueryRadiusZeroRadius) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds);
+
+    tree.insert(Point(5.0, 5.0));
+    tree.insert(Point(5.0, 5.0));  // duplicate location
+
+    // Zero radius at exact point location
+    auto results = tree.query_radius(5.0, 5.0, 0.0);
+    ASSERT_EQ(static_cast<int>(results.size()), 2);
+}
+
+// --- k_nearest correctness tests (known geometry) ---
+
+TEST(QuadTree, KNearestFindsClosest) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds);
+
+    // Place points at known distances from origin
+    tree.insert(Point(30.0, 0.0));  // dist = 30
+    tree.insert(Point(10.0, 0.0));  // dist = 10
+    tree.insert(Point(20.0, 0.0));  // dist = 20
+    tree.insert(Point(50.0, 0.0));  // dist = 50
+
+    auto results = tree.k_nearest(0.0, 0.0, 1);
+    ASSERT_EQ(static_cast<int>(results.size()), 1);
+    ASSERT_NEAR(results[0].first.x, 10.0, 1e-9);
+    ASSERT_NEAR(results[0].second, 10.0, 1e-9);
+}
+
+TEST(QuadTree, KNearestReturnsKSorted) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds);
+
+    tree.insert(Point(50.0, 0.0));  // dist = 50
+    tree.insert(Point(10.0, 0.0));  // dist = 10
+    tree.insert(Point(40.0, 0.0));  // dist = 40
+    tree.insert(Point(20.0, 0.0));  // dist = 20
+    tree.insert(Point(30.0, 0.0));  // dist = 30
+
+    auto results = tree.k_nearest(0.0, 0.0, 3);
+    ASSERT_EQ(static_cast<int>(results.size()), 3);
+
+    // Should be sorted by distance ascending: 10, 20, 30
+    ASSERT_NEAR(results[0].second, 10.0, 1e-9);
+    ASSERT_NEAR(results[1].second, 20.0, 1e-9);
+    ASSERT_NEAR(results[2].second, 30.0, 1e-9);
+}
+
+TEST(QuadTree, KNearestFromNonOrigin) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds);
+
+    // Query from (50, 50)
+    tree.insert(Point(49.0, 50.0));  // dist = 1
+    tree.insert(Point(50.0, 48.0));  // dist = 2
+    tree.insert(Point(10.0, 10.0));  // dist ~56.57
+
+    auto results = tree.k_nearest(50.0, 50.0, 2);
+    ASSERT_EQ(static_cast<int>(results.size()), 2);
+    ASSERT_NEAR(results[0].second, 1.0, 1e-9);
+    ASSERT_NEAR(results[1].second, 2.0, 1e-9);
+}
+
+TEST(QuadTree, KNearestWith2DDistances) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds);
+
+    // Right triangle: (3,4) is distance 5 from origin
+    tree.insert(Point(3.0, 4.0));    // dist = 5
+    tree.insert(Point(6.0, 8.0));    // dist = 10
+    tree.insert(Point(90.0, 90.0));  // far
+
+    auto results = tree.k_nearest(0.0, 0.0, 2);
+    ASSERT_EQ(static_cast<int>(results.size()), 2);
+    ASSERT_NEAR(results[0].second, 5.0, 1e-9);
+    ASSERT_NEAR(results[1].second, 10.0, 1e-9);
+}
+
+TEST(QuadTree, KNearestAcrossSubdivisions) {
+    BoundingBox bounds(50.0, 50.0, 50.0, 50.0);
+    QuadTree tree(bounds, 2);  // low capacity forces many subdivisions
+
+    // Points spread across all quadrants
+    tree.insert(Point(10.0, 10.0));  // SW-ish
+    tree.insert(Point(90.0, 10.0));  // SE-ish
+    tree.insert(Point(10.0, 90.0));  // NW-ish
+    tree.insert(Point(90.0, 90.0));  // NE-ish
+    tree.insert(Point(50.0, 50.0));  // center
+
+    // Query from center — center point should be nearest (dist 0)
+    auto results = tree.k_nearest(50.0, 50.0, 1);
+    ASSERT_EQ(static_cast<int>(results.size()), 1);
+    ASSERT_NEAR(results[0].second, 0.0, 1e-9);
+}
