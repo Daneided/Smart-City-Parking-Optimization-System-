@@ -156,12 +156,15 @@ public:
         return results;
     }
 
-    // Find k nearest points using branch-and-bound.
+    // Find k nearest points using branch-and-bound with max-heap pruning.
     // Returns list of (point, distance) sorted by distance ascending.
     std::vector<std::pair<Point, double>> k_nearest(double x, double y, int k = 1) {
-        // best stores (distance, point), kept sorted, max length k
+        // best is maintained as a max-heap during search (largest distance at front)
         std::vector<std::pair<double, Point>> best;
         _k_nearest(x, y, k, best);
+        // Sort ascending by distance for final output
+        std::sort(best.begin(), best.end(),
+                  [](const auto& a, const auto& b) { return a.first < b.first; });
         std::vector<std::pair<Point, double>> result;
         result.reserve(best.size());
         for (const auto& [d, p] : best) {
@@ -244,9 +247,15 @@ private:
             se->_query_range(search_box, found);
         }
     }
+    // Max-heap comparator: largest distance at front for efficient pruning
+    static bool _heap_cmp(const std::pair<double, Point>& a, const std::pair<double, Point>& b) {
+        return a.first < b.first;
+    }
+
+    // Branch-and-bound k-NN using max-heap. O(n log k) instead of O(n * k log k).
     void _k_nearest(double x, double y, int k, std::vector<std::pair<double, Point>>& best) {
         double min_dist = boundary.min_distance_to(x, y);
-        if (static_cast<int>(best.size()) >= k && min_dist > best.back().first) {
+        if (static_cast<int>(best.size()) >= k && min_dist > best.front().first) {
             return;  // prune: this subtree can't beat current k-th best
         }
 
@@ -254,12 +263,11 @@ private:
             double dist = point.distance_to(x, y);
             if (static_cast<int>(best.size()) < k) {
                 best.emplace_back(dist, point);
-                std::sort(best.begin(), best.end(),
-                          [](const auto& a, const auto& b) { return a.first < b.first; });
-            } else if (dist < best.back().first) {
+                std::push_heap(best.begin(), best.end(), _heap_cmp);
+            } else if (dist < best.front().first) {
+                std::pop_heap(best.begin(), best.end(), _heap_cmp);
                 best.back() = {dist, point};
-                std::sort(best.begin(), best.end(),
-                          [](const auto& a, const auto& b) { return a.first < b.first; });
+                std::push_heap(best.begin(), best.end(), _heap_cmp);
             }
         }
 
