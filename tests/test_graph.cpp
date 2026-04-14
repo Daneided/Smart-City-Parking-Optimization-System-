@@ -117,3 +117,71 @@ TEST(Graph, NodePositionNotSet) {
     auto pos = g.get_position("A");
     ASSERT_FALSE(pos.has_value());
 }
+
+// --- Dijkstra shortest path tests ---
+
+TEST(Dijkstra, SimpleThreeNodePath) {
+    Graph g;
+    g.add_edge("A", "B", 1.0);
+    g.add_edge("B", "C", 2.0);
+    auto result = g.dijkstra("A", "C");
+    ASSERT_TRUE(result.has_value());
+    auto [path, dist] = result.value();
+    ASSERT_NEAR(dist, 3.0, 0.001);
+    ASSERT_EQ(path.size(), 3);
+    ASSERT_EQ(path[0], "A");
+    ASSERT_EQ(path[1], "B");
+    ASSERT_EQ(path[2], "C");
+}
+
+TEST(Dijkstra, ChoosesShorterPath) {
+    // A->B->D = 3.0, A->C->D = 7.0 — should pick A->B->D
+    Graph g;
+    g.add_edge("A", "B", 1.0);
+    g.add_edge("A", "C", 5.0);
+    g.add_edge("B", "D", 2.0);
+    g.add_edge("C", "D", 2.0);
+    auto result = g.dijkstra("A", "D");
+    ASSERT_TRUE(result.has_value());
+    auto [path, dist] = result.value();
+    ASSERT_NEAR(dist, 3.0, 0.001);
+    ASSERT_EQ(path[0], "A");
+    ASSERT_EQ(path[1], "B");
+    ASSERT_EQ(path[2], "D");
+}
+
+TEST(Dijkstra, FiveNodeNetwork) {
+    //   A -1-> B -1-> E
+    //   |             ^
+    //   2             1
+    //   v             |
+    //   C ----3----> D
+    // Shortest A->E: A->B->E = 2.0
+    Graph g;
+    g.add_edge("A", "B", 1.0);
+    g.add_edge("A", "C", 2.0);
+    g.add_edge("B", "E", 1.0);
+    g.add_edge("C", "D", 3.0);
+    g.add_edge("D", "E", 1.0);
+    auto result = g.dijkstra("A", "E");
+    ASSERT_TRUE(result.has_value());
+    auto [path, dist] = result.value();
+    ASSERT_NEAR(dist, 2.0, 0.001);
+    ASSERT_EQ(path.size(), 3);
+    ASSERT_EQ(path[0], "A");
+    ASSERT_EQ(path[1], "B");
+    ASSERT_EQ(path[2], "E");
+}
+
+TEST(Dijkstra, DirectEdgeShorterThanMultiHop) {
+    // Direct A->C = 10, but A->B->C = 3
+    Graph g;
+    g.add_edge("A", "B", 1.0);
+    g.add_edge("B", "C", 2.0);
+    g.add_edge("A", "C", 10.0);
+    auto result = g.dijkstra("A", "C");
+    ASSERT_TRUE(result.has_value());
+    auto [path, dist] = result.value();
+    ASSERT_NEAR(dist, 3.0, 0.001);
+    ASSERT_EQ(path.size(), 3);
+}
