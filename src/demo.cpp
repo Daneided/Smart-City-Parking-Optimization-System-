@@ -813,9 +813,297 @@ void scenario_2_stadium_event() {
 }
 
 void scenario_3_smart_rerouting() {
-    // Placeholder
     print_header("SCENARIO 3: SMART REROUTING");
-    std::cout << "  Coming soon...\n";
+    std::cout << ansi::DIM
+              << "    Wednesday afternoon, 2:00 PM. A driver is being routed to a spot\n"
+              << "    when an accident blocks the primary route. Then another driver takes\n"
+              << "    the target spot. The system must adapt in real time.\n"
+              << ansi::RESET;
+    press_enter();
+
+    // ── Step 1: Build the road network ────────────────────────────────
+
+    print_subheader("Step 1: Downtown Parking Garage -- Road Network");
+
+    // Asymmetric graph: north route slightly shorter than south
+    Graph graph;
+    graph.add_node("Entrance", std::make_pair(0.0, 5.0));
+    graph.add_node("A",        std::make_pair(4.0, 8.0));
+    graph.add_node("B",        std::make_pair(4.0, 2.0));
+    graph.add_node("C",        std::make_pair(8.0, 8.0));
+    graph.add_node("D",        std::make_pair(8.0, 2.0));
+    graph.add_node("E",        std::make_pair(12.0, 5.0));
+    graph.add_node("P1",       std::make_pair(14.0, 8.0));
+    graph.add_node("P2",       std::make_pair(14.0, 2.0));
+    graph.add_node("P3",       std::make_pair(16.0, 5.0));
+    graph.add_node("Exit",     std::make_pair(20.0, 5.0));
+
+    graph.add_edge_undirected("Entrance", "A", 5.0);
+    graph.add_edge_undirected("Entrance", "B", 5.0);
+    graph.add_edge_undirected("A", "C", 4.0);    // North corridor
+    graph.add_edge_undirected("B", "D", 4.5);    // South corridor (slightly longer)
+    graph.add_edge_undirected("C", "E", 5.0);
+    graph.add_edge_undirected("D", "E", 5.0);
+    graph.add_edge_undirected("E", "P1", 3.61);
+    graph.add_edge_undirected("E", "P2", 3.61);
+    graph.add_edge_undirected("E", "P3", 4.0);
+    graph.add_edge_undirected("P1", "Exit", 6.32);
+    graph.add_edge_undirected("P2", "Exit", 6.32);
+    graph.add_edge_undirected("P3", "Exit", 4.0);
+
+    // ASCII map of the network
+    std::cout << ansi::DIM;
+    std::cout << "                    North Corridor\n";
+    std::cout << "              A -----(4.0)----> C\n";
+    std::cout << "             /                   \\\n";
+    std::cout << "        (5.0)                  (5.0)\n";
+    std::cout << "           /                       \\\n";
+    std::cout << "    Entrance                        E ----> P1 ----> Exit\n";
+    std::cout << "           \\                       /  \\             /\n";
+    std::cout << "        (5.0)                  (5.0)  --> P2 ----/\n";
+    std::cout << "             \\                   /     \\-> P3 --/\n";
+    std::cout << "              B -----(4.5)----> D\n";
+    std::cout << "                    South Corridor\n";
+    std::cout << ansi::RESET << "\n";
+
+    // Spots and availability
+    ParkingSpot spot_p1("P1", {14.0, 8.0}, "Main");
+    ParkingSpot spot_p2("P2", {14.0, 2.0}, "Main");
+    ParkingSpot spot_p3("P3", {16.0, 5.0}, "Main");
+    spot_p3.occupy(); // P3 already taken
+
+    AvailabilityTracker tracker;
+    tracker.register_spot("P1", "Main", true);
+    tracker.register_spot("P2", "Main", true);
+    tracker.register_spot("P3", "Main", false);
+
+    spot_p1.register_status_callback(
+        [&tracker](const std::string& id, SpotStatus old_s, SpotStatus new_s) {
+            tracker.on_status_change(id, old_s, new_s);
+        });
+    spot_p2.register_status_callback(
+        [&tracker](const std::string& id, SpotStatus old_s, SpotStatus new_s) {
+            tracker.on_status_change(id, old_s, new_s);
+        });
+
+    print_label("Spot Status:");
+    print_spot_status("P1", spot_p1.status);
+    std::cout << "     ";
+    print_spot_status("P2", spot_p2.status);
+    std::cout << "     ";
+    print_spot_status("P3", spot_p3.status);
+    std::cout << "\n\n";
+
+    print_info("North corridor (via A->C): 14.0m total to hub E");
+    print_info("South corridor (via B->D): 14.5m total to hub E");
+    print_info("North route is 0.5m shorter -- preferred path");
+    press_enter();
+
+    // ── Step 2: Full pipeline — search + route ────────────────────────
+
+    print_subheader("Step 2: Driver Arrives -- Search + Route");
+
+    QuadTree tree(BoundingBox(10.0, 5.0, 10.0, 5.0));
+    tree.insert(Point(14.0, 8.0, std::any(make_spot_data("P1", "Main"))));
+    tree.insert(Point(14.0, 2.0, std::any(make_spot_data("P2", "Main"))));
+    tree.insert(Point(16.0, 5.0, std::any(make_spot_data("P3", "Main"))));
+
+    SpotSearcher searcher(&tree, [&tracker](const std::string& id) {
+        return tracker.is_available(id);
+    });
+
+    std::cout << "  Searching for nearest available spot from Entrance...\n";
+    sleep_ms(400);
+    auto nearest = searcher.search_nearest({0.0, 5.0});
+    if (nearest.has_value()) {
+        print_success("Nearest available: " + nearest->spot_id + " (" +
+                      [&]{ std::ostringstream s; s << std::fixed << std::setprecision(2)
+                           << nearest->distance; return s.str(); }() + "m)");
+    }
+
+    std::cout << "\n  Computing route with A*...\n";
+    sleep_ms(300);
+
+    AStarPathfinder astar(&graph);
+    RouteOptimizer router(&astar, &graph);
+    router.register_exit("Exit");
+
+    auto route1 = router.find_route_to_spot("Entrance", "P1");
+    if (route1.has_value()) {
+        print_route_visual(route1->nodes, route1->total_distance, route1->estimated_time);
+    }
+
+    std::cout << "\n";
+    print_success("Driver heading to P1 via " + std::string(ansi::BOLD) + "north corridor" +
+                  std::string(ansi::RESET) + std::string(ansi::GREEN) + " (shorter route)");
+    press_enter();
+
+    // ── Step 3: Congestion strikes ────────────────────────────────────
+
+    print_subheader("Step 3: CONGESTION ALERT -- Accident on Segment A -> C");
+
+    std::cout << "\n";
+    std::cout << ansi::BOLD << ansi::RED;
+    std::cout << "  \u2554" << repeat_str("\u2550", 52) << "\u2557\n";
+    std::cout << "  \u2551  \u26A0  TRAFFIC ALERT: Accident on segment A -> C        \u2551\n";
+    std::cout << "  \u2551     Original weight:  4.0                          \u2551\n";
+    std::cout << "  \u2551     Congestion delay: +20.0                        \u2551\n";
+    std::cout << "  \u2551     New weight:        24.0                        \u2551\n";
+    std::cout << "  \u255A" << repeat_str("\u2550", 52) << "\u255D\n";
+    std::cout << ansi::RESET << "\n";
+
+    // Apply congestion to both directions
+    router.update_congestion("A", "C", 20.0);
+    router.update_congestion("C", "A", 20.0);
+
+    print_warning("Edge weight updated via Graph::update_weight()");
+    print_info("System recalculating optimal route...");
+    press_enter();
+
+    // ── Step 4: Reroute via south corridor ────────────────────────────
+
+    print_subheader("Step 4: System Reroutes via South Corridor");
+
+    auto route2 = router.find_route_to_spot("Entrance", "P1");
+
+    std::vector<int> cmp_widths = {16, 24, 24};
+    print_table_header({"", "BEFORE Congestion", "AFTER Congestion"}, cmp_widths);
+
+    // Path rows
+    auto fmt_path = [](const std::vector<std::string>& p) {
+        std::string s;
+        for (size_t i = 0; i < p.size(); ++i) {
+            if (i > 0) s += " > ";
+            s += p[i];
+        }
+        return s;
+    };
+    print_table_row({"Route",
+        route1 ? fmt_path(route1->nodes) : "N/A",
+        route2 ? fmt_path(route2->nodes) : "N/A"}, cmp_widths);
+
+    auto fmt_dist = [](double d) {
+        std::ostringstream s; s << std::fixed << std::setprecision(2) << d << " m"; return s.str();
+    };
+    print_table_row({"Distance",
+        route1 ? fmt_dist(route1->total_distance) : "N/A",
+        route2 ? fmt_dist(route2->total_distance) : "N/A"}, cmp_widths);
+
+    // Delta
+    if (route1 && route2) {
+        double delta = route2->total_distance - route1->total_distance;
+        std::ostringstream ds;
+        ds << std::fixed << std::setprecision(2) << "+" << delta << " m ("
+           << std::setprecision(1) << (delta / route1->total_distance * 100.0) << "%)";
+        print_table_row({"Detour cost", "--", ds.str()}, cmp_widths);
+    }
+
+    print_table_row({"Corridor used", "North (A->C)", "South (B->D)"}, cmp_widths);
+    print_table_end(cmp_widths);
+
+    std::cout << "\n";
+    print_success("Small detour to avoid 20.0m congestion penalty");
+    print_success("A* recomputed optimal path with updated edge weights");
+    print_info("Dynamic weight update: RouteOptimizer::update_congestion()");
+    press_enter();
+
+    // ── Step 5: Spot stolen — re-search ───────────────────────────────
+
+    print_subheader("Step 5: Spot Taken! -- Adaptive Re-Search");
+
+    std::cout << "  While Driver 1 was rerouting, another driver took P1!\n\n";
+    sleep_ms(500);
+
+    std::cout << "  " << ansi::BOLD << ansi::MAGENTA
+              << "\u26A1 CALLBACK: " << ansi::RESET
+              << "P1 status changed: "
+              << ansi::GREEN << "available" << ansi::RESET << " -> "
+              << ansi::RED << "occupied" << ansi::RESET << "\n";
+    sleep_ms(200);
+    std::cout << "  " << ansi::BOLD << ansi::MAGENTA
+              << "\u26A1 TRACKER: " << ansi::RESET
+              << "P1 removed from available pool\n";
+    spot_p1.occupy();
+
+    std::cout << "\n";
+    print_warning("Driver 1's target spot is no longer available!");
+    std::cout << "\n  System re-searching for next best spot...\n";
+    sleep_ms(400);
+
+    auto new_nearest = searcher.search_nearest({0.0, 5.0});
+    if (new_nearest.has_value()) {
+        print_success("New nearest available: " + new_nearest->spot_id);
+    }
+
+    std::cout << "\n  Computing new route...\n";
+    sleep_ms(300);
+
+    auto route3 = router.find_route_to_spot("Entrance", "P2");
+    if (route3.has_value()) {
+        print_route_visual(route3->nodes, route3->total_distance, route3->estimated_time);
+    }
+
+    std::cout << "\n";
+    print_success("Seamless fallback -- Observer Pattern detected the change");
+    print_success("SpotSearcher found alternative without full re-scan");
+    press_enter();
+
+    // ── Step 6: Park and exit ─────────────────────────────────────────
+
+    print_subheader("Step 6: Driver Parks and Exits");
+
+    std::cout << "  Driver arrives at P2 and parks.\n\n";
+    sleep_ms(300);
+
+    std::cout << "  " << ansi::BOLD << ansi::MAGENTA
+              << "\u26A1 CALLBACK: " << ansi::RESET
+              << "P2 status changed: "
+              << ansi::GREEN << "available" << ansi::RESET << " -> "
+              << ansi::RED << "occupied" << ansi::RESET << "\n";
+    spot_p2.occupy();
+
+    std::cout << "\n  Computing exit route...\n";
+    sleep_ms(300);
+
+    auto exit_route = router.find_route_to_exit("P2");
+    if (exit_route.has_value()) {
+        print_route_visual(exit_route->nodes, exit_route->total_distance, exit_route->estimated_time);
+    }
+
+    std::cout << "\n";
+    print_label("Final Spot Status:");
+    print_spot_status("P1", spot_p1.status);
+    std::cout << "     ";
+    print_spot_status("P2", spot_p2.status);
+    std::cout << "     ";
+    print_spot_status("P3", spot_p3.status);
+    std::cout << "\n\n";
+    print_warning("All spots occupied. Garage FULL.");
+
+    std::cout << "\n";
+    print_label("Driver 1 Complete Journey:");
+    std::cout << "  Search " << ansi::DIM << "\u2500\u25B6 " << ansi::RESET
+              << "Route " << ansi::DIM << "\u2500\u25B6 " << ansi::RESET
+              << ansi::RED << "Congestion" << ansi::RESET
+              << ansi::DIM << " \u2500\u25B6 " << ansi::RESET
+              << "Reroute " << ansi::DIM << "\u2500\u25B6 " << ansi::RESET
+              << ansi::RED << "Spot Taken" << ansi::RESET
+              << ansi::DIM << " \u2500\u25B6 " << ansi::RESET
+              << "Re-search " << ansi::DIM << "\u2500\u25B6 " << ansi::RESET
+              << ansi::GREEN << "Park" << ansi::RESET
+              << ansi::DIM << " \u2500\u25B6 " << ansi::RESET
+              << "Exit\n";
+    press_enter();
+
+    // ── Scenario summary ──────────────────────────────────────────────
+
+    print_subheader("Scenario 3 Summary");
+    print_success("Dynamic congestion detection and edge weight update");
+    print_success("Real-time rerouting (A* recomputes optimal path)");
+    print_success("Callback-driven spot unavailability (Observer Pattern)");
+    print_success("Adaptive re-search when target spot is taken");
+    print_success("Full pipeline: Search -> Route -> Reroute -> Re-search -> Park -> Exit");
+    print_success("Route-to-exit computation");
     press_enter();
 }
 
