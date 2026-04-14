@@ -280,7 +280,68 @@ int show_menu() {
 }
 
 void show_finale() {
-    // Placeholder — will be implemented in a later commit
+    clear_screen();
+
+    std::cout << "\n" << ansi::BOLD << ansi::CYAN;
+    std::cout << "  \u2554" << repeat_str("\u2550", BOX_WIDTH) << "\u2557\n";
+    std::cout << "  \u2551" << std::string(16, ' ')
+              << "SYSTEM CAPABILITIES SUMMARY"
+              << std::string(BOX_WIDTH - 16 - 26, ' ') << "\u2551\n";
+    std::cout << "  \u2560" << repeat_str("\u2550", BOX_WIDTH) << "\u2563\n";
+    std::cout << ansi::RESET;
+
+    auto line = [](const std::string& text) {
+        int pad = BOX_WIDTH - static_cast<int>(text.size());
+        if (pad < 0) pad = 0;
+        std::cout << ansi::CYAN << "  \u2551" << ansi::RESET
+                  << text << std::string(pad, ' ')
+                  << ansi::CYAN << "\u2551" << ansi::RESET << "\n";
+    };
+
+    auto section = [&](const std::string& title) {
+        line("");
+        std::string s = "  " + std::string(ansi::BOLD) + title + std::string(ansi::RESET);
+        // Print manually since ANSI codes mess up padding
+        std::cout << ansi::CYAN << "  \u2551" << ansi::RESET
+                  << "  " << ansi::BOLD << title << ansi::RESET
+                  << std::string(BOX_WIDTH - 2 - static_cast<int>(title.size()), ' ')
+                  << ansi::CYAN << "\u2551" << ansi::RESET << "\n";
+    };
+
+    auto item = [&](const std::string& name, const std::string& desc) {
+        std::string text = "    \u2713 " + name + "  --  " + desc;
+        line(text);
+    };
+
+    section("Data Structures");
+    item("QuadTree",       "spatial index, k-NN, range queries, branch-and-bound");
+    item("Graph",          "adjacency list, weighted edges, dynamic updates");
+    item("PriorityQueue",  "min-heap with decrease-key, lazy deletion");
+
+    section("Algorithms");
+    item("QuadTree k-NN",       "branch-and-bound O(N log k)");
+    item("Dijkstra",            "shortest path O((V+E) log V)");
+    item("A* Search",           "heuristic-guided pathfinding");
+    item("Greedy Allocation",   "fair spot assignment O(M x N)");
+
+    section("Design Patterns");
+    item("Strategy Pattern",      "IPathfinder polymorphic interface");
+    item("Observer Pattern",      "StatusCallback -> AvailabilityTracker");
+    item("Dependency Injection",  "constructor-based, non-owning pointers");
+
+    section("Implementation");
+    item("C++17",              "std::optional, std::any, structured bindings");
+    item("Header-only",        "single compilation unit, no linking");
+    item("Zero dependencies",  "standard library only, all from scratch");
+
+    line("");
+    std::cout << ansi::CYAN << "  \u255A" << repeat_str("\u2550", BOX_WIDTH)
+              << "\u255D" << ansi::RESET << "\n";
+
+    std::cout << "\n\n" << ansi::BOLD
+              << "                          Thank you. Questions?"
+              << ansi::RESET << "\n\n";
+    press_enter();
 }
 
 void scenario_1_rush_hour() {
