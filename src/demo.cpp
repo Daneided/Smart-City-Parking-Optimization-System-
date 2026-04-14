@@ -535,9 +535,280 @@ void scenario_1_rush_hour() {
 }
 
 void scenario_2_stadium_event() {
-    // Placeholder
     print_header("SCENARIO 2: STADIUM EVENT NIGHT");
-    std::cout << "  Coming soon...\n";
+    std::cout << ansi::DIM
+              << "    Saturday evening, 6:30 PM. A major event at the nearby stadium causes\n"
+              << "    a wave of drivers requesting parking simultaneously. The system must\n"
+              << "    fairly allocate spots and handle overflow when demand exceeds supply.\n"
+              << ansi::RESET;
+    press_enter();
+
+    // ── Step 1: Setup the stadium lot ─────────────────────────────────
+
+    print_subheader("Step 1: Stadium Parking Lot -- Current Status");
+
+    struct SpotDef { std::string id; double x; double y; std::string zone; bool occupied; };
+    std::vector<SpotDef> spot_defs = {
+        // Zone North (near stadium) — 3 of 5 occupied
+        {"N1",5,35,"North",true},  {"N2",10,35,"North",true}, {"N3",15,35,"North",true},
+        {"N4",5,30,"North",false}, {"N5",10,30,"North",false},
+        // Zone East — 2 of 5 occupied
+        {"E1",35,25,"East",true},  {"E2",35,20,"East",true},  {"E3",35,15,"East",false},
+        {"E4",30,25,"East",false}, {"E5",30,20,"East",false},
+        // Zone South (far lot) — all free
+        {"S1",5,5,"South",false},  {"S2",10,5,"South",false}, {"S3",15,5,"South",false},
+        {"S4",5,10,"South",false}, {"S5",10,10,"South",false},
+        // Zone West — 3 of 5 occupied
+        {"W1",5,15,"West",true},   {"W2",5,20,"West",true},   {"W3",5,25,"West",true},
+        {"W4",10,15,"West",false}, {"W5",10,20,"West",false},
+    };
+
+    AvailabilityTracker tracker;
+    QuadTree tree(BoundingBox(20.0, 20.0, 20.0, 20.0));
+    std::vector<ParkingSpot> spots;
+    spots.reserve(spot_defs.size());
+
+    for (auto& sd : spot_defs) {
+        spots.emplace_back(sd.id, std::make_pair(sd.x, sd.y), sd.zone);
+        tracker.register_spot(sd.id, sd.zone, true);
+        tree.insert(Point(sd.x, sd.y, std::any(make_spot_data(sd.id, sd.zone))));
+        if (sd.occupied) {
+            spots.back().occupy();
+            tracker.on_status_change(sd.id, SpotStatus::AVAILABLE, SpotStatus::OCCUPIED);
+        }
+    }
+
+    print_label("Zone Occupancy:");
+    print_occupancy_bar("North (Stadium)", tracker.get_zone_occupancy_rate("North"));
+    print_occupancy_bar("East  (Side)",    tracker.get_zone_occupancy_rate("East"));
+    print_occupancy_bar("South (Far lot)", tracker.get_zone_occupancy_rate("South"));
+    print_occupancy_bar("West  (Side)",    tracker.get_zone_occupancy_rate("West"));
+    std::cout << "\n  Total available: " << ansi::BOLD << tracker.count_available()
+              << " / 20" << ansi::RESET << "\n";
+    press_enter();
+
+    // ── Step 2: Drivers arrive ────────────────────────────────────────
+
+    print_subheader("Step 2: 8 Drivers Request Parking Simultaneously");
+
+    struct Driver { std::string id; std::string name; double x; double y; std::string desc; };
+    std::vector<Driver> drivers = {
+        {"D1", "Alice", 8,  33, "near stadium"},
+        {"D2", "Bob",   33, 22, "from east"},
+        {"D3", "Carol", 8,  8,  "from south"},
+        {"D4", "Dave",  7,  18, "from west"},
+        {"D5", "Eve",   12, 32, "near stadium"},
+        {"D6", "Frank", 32, 18, "from east"},
+        {"D7", "Grace", 12, 7,  "from south"},
+        {"D8", "Hank",  9,  22, "from west"},
+    };
+
+    for (auto& d : drivers) {
+        std::ostringstream line;
+        line << ansi::BOLD << "  >> " << ansi::RESET
+             << std::left << std::setw(8) << d.name
+             << ansi::DIM << " at (" << std::setw(2) << d.x << ", "
+             << std::setw(2) << d.y << ")  -- " << d.desc << ansi::RESET;
+        std::cout << line.str() << "\n";
+        sleep_ms(120);
+    }
+
+    std::cout << "\n";
+    print_info("8 drivers, 12 available spots. System must assign optimally.");
+    press_enter();
+
+    // ── Step 3: Greedy allocation ─────────────────────────────────────
+
+    print_subheader("Step 3: Greedy Allocation Algorithm -- O(M x N)");
+
+    std::cout << "  For each driver, assign the " << ansi::BOLD << "closest available"
+              << ansi::RESET << " spot...\n\n";
+    sleep_ms(300);
+
+    // Build request and spot vectors for the allocator
+    std::vector<std::pair<std::string, std::pair<double, double>>> requests;
+    for (auto& d : drivers) {
+        requests.push_back({d.name, {d.x, d.y}});
+    }
+
+    std::vector<std::pair<std::string, std::pair<double, double>>> avail_spots;
+    for (auto& sd : spot_defs) {
+        if (!sd.occupied) {
+            avail_spots.push_back({sd.id, {sd.x, sd.y}});
+        }
+    }
+
+    AllocationOptimizer allocator;
+    auto result = allocator.allocate_greedy(requests, avail_spots);
+
+    // Build a zone lookup
+    std::unordered_map<std::string, std::string> spot_zone_map;
+    for (auto& sd : spot_defs) spot_zone_map[sd.id] = sd.zone;
+
+    // Display results table
+    std::vector<int> widths = {10, 10, 15, 10};
+    print_table_header({"Driver", "Spot", "Distance (m)", "Zone"}, widths);
+
+    // We need to print in driver order
+    double total_cost = 0.0;
+    for (auto& d : drivers) {
+        auto it = result.assignments.find(d.name);
+        if (it != result.assignments.end()) {
+            std::string spot_id = it->second;
+            // Calculate distance
+            double dx = d.x, dy = d.y;
+            double sx = 0, sy = 0;
+            for (auto& sd : spot_defs) {
+                if (sd.id == spot_id) { sx = sd.x; sy = sd.y; break; }
+            }
+            double dist = std::sqrt((dx-sx)*(dx-sx) + (dy-sy)*(dy-sy));
+            total_cost += dist;
+
+            std::ostringstream ds;
+            ds << std::fixed << std::setprecision(2) << dist;
+            print_table_row({d.name, spot_id, ds.str(), spot_zone_map[spot_id]}, widths);
+            sleep_ms(100);
+        }
+    }
+    print_table_end(widths);
+
+    std::cout << "\n";
+    print_success("All 8 drivers assigned successfully");
+    std::ostringstream cost_str;
+    cost_str << std::fixed << std::setprecision(2) << result.total_cost;
+    print_success("Total walking distance: " + cost_str.str() + " m");
+    std::ostringstream avg_str;
+    avg_str << std::fixed << std::setprecision(2) << result.total_cost / 8.0;
+    print_success("Average distance per driver: " + avg_str.str() + " m");
+    press_enter();
+
+    // ── Step 4: Demand exceeds supply ─────────────────────────────────
+
+    print_subheader("Step 4: Demand Exceeds Supply -- 6 Late Arrivals");
+
+    std::cout << "  6 more drivers arrive, but only " << ansi::BOLD << "4 spots"
+              << ansi::RESET << " remain...\n\n";
+
+    // After first allocation, 4 spots left (12 available - 8 assigned)
+    // Build remaining spots
+    std::vector<std::pair<std::string, std::pair<double, double>>> remaining_spots;
+    std::unordered_set<std::string> assigned_set;
+    for (auto& [name, spot] : result.assignments) assigned_set.insert(spot);
+    for (auto& sd : spot_defs) {
+        if (!sd.occupied && assigned_set.find(sd.id) == assigned_set.end()) {
+            remaining_spots.push_back({sd.id, {sd.x, sd.y}});
+        }
+    }
+
+    std::vector<std::pair<std::string, std::pair<double, double>>> late_requests = {
+        {"Irene",  {20, 30}},
+        {"Jack",   {25, 10}},
+        {"Karen",  {18, 25}},
+        {"Leo",    {30, 30}},
+        {"Mia",    {22, 5}},
+        {"Nick",   {28, 15}},
+    };
+
+    for (auto& [name, loc] : late_requests) {
+        std::cout << "  " << ansi::BOLD << ">> " << ansi::RESET
+                  << std::left << std::setw(8) << name
+                  << ansi::DIM << " at (" << loc.first << ", " << loc.second << ")"
+                  << ansi::RESET << "\n";
+        sleep_ms(80);
+    }
+
+    auto late_result = allocator.allocate_greedy(late_requests, remaining_spots);
+
+    std::cout << "\n";
+    std::vector<int> widths2 = {10, 10, 15};
+    print_table_header({"Driver", "Spot", "Distance (m)"}, widths2);
+    for (auto& [name, loc] : late_requests) {
+        auto it = late_result.assignments.find(name);
+        if (it != late_result.assignments.end()) {
+            double sx = 0, sy = 0;
+            for (auto& sd : spot_defs) {
+                if (sd.id == it->second) { sx = sd.x; sy = sd.y; break; }
+            }
+            double dist = std::sqrt((loc.first-sx)*(loc.first-sx) + (loc.second-sy)*(loc.second-sy));
+            std::ostringstream ds;
+            ds << std::fixed << std::setprecision(2) << dist;
+            print_table_row({name, it->second, ds.str()}, widths2);
+        }
+    }
+    print_table_end(widths2);
+
+    if (!late_result.unassigned.empty()) {
+        std::cout << "\n";
+        std::string names;
+        for (size_t i = 0; i < late_result.unassigned.size(); ++i) {
+            if (i > 0) names += ", ";
+            names += late_result.unassigned[i];
+        }
+        print_warning(std::to_string(late_result.unassigned.size()) +
+                      " drivers could not be assigned: " + names);
+        print_info("Greedy processes in arrival order: earlier arrivals get priority");
+        print_info("A Hungarian algorithm could minimize total distance (O(N^3))");
+        print_info("Greedy is O(M x N) -- better for real-time parking systems");
+    }
+    press_enter();
+
+    // ── Step 5: QuadTree range query ──────────────────────────────────
+
+    print_subheader("Step 5: QuadTree Range Query -- What's Near the Stadium?");
+
+    std::cout << "  Query: All spots within " << ansi::BOLD << "15m"
+              << ansi::RESET << " of the stadium entrance (10, 38)\n\n";
+    sleep_ms(300);
+
+    auto range_results = tree.query_radius(10.0, 38.0, 15.0);
+
+    // Sort by distance
+    std::sort(range_results.begin(), range_results.end(),
+              [](auto& a, auto& b) { return a.second < b.second; });
+
+    for (auto& [point, dist] : range_results) {
+        std::string sid;
+        try {
+            auto& data = std::any_cast<const std::unordered_map<std::string, std::string>&>(point.data);
+            auto it = data.find("spot_id");
+            if (it != data.end()) sid = it->second;
+        } catch (...) { continue; }
+
+        bool is_avail = tracker.is_available(sid);
+        // Check if it was assigned in our allocations
+        bool was_assigned = assigned_set.count(sid) > 0;
+        bool actually_avail = is_avail && !was_assigned;
+
+        std::ostringstream line;
+        line << "  " << std::left << std::setw(4) << sid
+             << " (" << std::setw(2) << point.x << ", " << std::setw(2) << point.y << ")"
+             << "  " << std::fixed << std::setprecision(1) << std::setw(5) << dist << "m  ";
+
+        std::cout << line.str();
+        if (!is_avail) {
+            std::cout << ansi::RED << "\u25CF OCCUPIED" << ansi::RESET;
+        } else if (was_assigned) {
+            std::cout << ansi::YELLOW << "\u25CF JUST ASSIGNED" << ansi::RESET;
+        } else {
+            std::cout << ansi::GREEN << "\u25CF AVAILABLE" << ansi::RESET;
+        }
+        std::cout << "\n";
+        sleep_ms(80);
+    }
+
+    std::cout << "\n";
+    print_warning("Most spots near the stadium are occupied or just assigned");
+    print_info("QuadTree range query: O(log N + R) -- only examined relevant quadrants");
+    press_enter();
+
+    // ── Scenario summary ──────────────────────────────────────────────
+
+    print_subheader("Scenario 2 Summary");
+    print_success("Greedy allocation algorithm O(M x N)");
+    print_success("Batch processing of 8 simultaneous requests");
+    print_success("Overflow handling -- 2 drivers unassigned when demand > supply");
+    print_success("QuadTree range query for spatial analysis");
+    print_success("Zone occupancy monitoring across 4 zones");
     press_enter();
 }
 
