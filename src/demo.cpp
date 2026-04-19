@@ -204,10 +204,9 @@ void print_table_end(const std::vector<int>& widths) {
 }
 
 // Helper to build QuadTree point data
-std::unordered_map<std::string, std::string> make_spot_data(
-        const std::string& spot_id, const std::string& zone_id,
-        const std::string& spot_type = "standard") {
-    return {{"spot_id", spot_id}, {"zone_id", zone_id}, {"spot_type", spot_type}};
+SpotData make_spot_data(const std::string& spot_id, const std::string& zone_id,
+                        const std::string& spot_type = "standard") {
+    return SpotData{spot_id, zone_id, spot_type};
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -329,7 +328,7 @@ void show_finale() {
     item("Dependency Injection",  "constructor-based, non-owning pointers");
 
     section("Implementation");
-    item("C++17",              "std::optional, std::any, structured bindings");
+    item("C++17",              "std::optional, structured bindings, if constexpr");
     item("Header-only",        "single compilation unit, no linking");
     item("Zero dependencies",  "standard library only, all from scratch");
 
@@ -382,7 +381,7 @@ void scenario_1_rush_hour() {
                 tracker.on_status_change(id, old_s, new_s);
             });
         tracker.register_spot(sd.id, sd.zone, true);
-        tree.insert(Point(sd.x, sd.y, std::any(make_spot_data(sd.id, sd.zone))));
+        tree.insert(Point(sd.x, sd.y, make_spot_data(sd.id, sd.zone)));
         if (sd.occupied) spots.back().occupy();
     }
 
@@ -631,7 +630,7 @@ void scenario_2_stadium_event() {
     for (auto& sd : spot_defs) {
         spots.emplace_back(sd.id, std::make_pair(sd.x, sd.y), sd.zone);
         tracker.register_spot(sd.id, sd.zone, true);
-        tree.insert(Point(sd.x, sd.y, std::any(make_spot_data(sd.id, sd.zone))));
+        tree.insert(Point(sd.x, sd.y, make_spot_data(sd.id, sd.zone)));
         if (sd.occupied) {
             spots.back().occupy();
             tracker.on_status_change(sd.id, SpotStatus::AVAILABLE, SpotStatus::OCCUPIED);
@@ -827,12 +826,7 @@ void scenario_2_stadium_event() {
               [](auto& a, auto& b) { return a.second < b.second; });
 
     for (auto& [point, dist] : range_results) {
-        std::string sid;
-        try {
-            auto& data = std::any_cast<const std::unordered_map<std::string, std::string>&>(point.data);
-            auto it = data.find("spot_id");
-            if (it != data.end()) sid = it->second;
-        } catch (...) { continue; }
+        const std::string& sid = point.data.spot_id;
 
         bool is_avail = tracker.is_available(sid);
         // Check if it was assigned in our allocations
@@ -964,9 +958,9 @@ void scenario_3_smart_rerouting() {
     print_subheader("Step 2: Driver Arrives -- Search + Route");
 
     QuadTree tree(BoundingBox(10.0, 5.0, 10.0, 5.0));
-    tree.insert(Point(14.0, 8.0, std::any(make_spot_data("P1", "Main"))));
-    tree.insert(Point(14.0, 2.0, std::any(make_spot_data("P2", "Main"))));
-    tree.insert(Point(16.0, 5.0, std::any(make_spot_data("P3", "Main"))));
+    tree.insert(Point(14.0, 8.0, make_spot_data("P1", "Main")));
+    tree.insert(Point(14.0, 2.0, make_spot_data("P2", "Main")));
+    tree.insert(Point(16.0, 5.0, make_spot_data("P3", "Main")));
 
     SpotSearcher searcher(&tree, [&tracker](const std::string& id) {
         return tracker.is_available(id);

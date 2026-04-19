@@ -6,9 +6,6 @@
 #include <limits>
 #include <functional>
 #include <algorithm>
-#include <unordered_map>
-#include <tuple>
-#include <any>
 
 #include "../data_structures/quadtree.h"
 
@@ -48,12 +45,12 @@ public:
         while (true) {
             auto candidates = _spatial_index->k_nearest(x, y, k);
             for (auto& [point, distance] : candidates) {
-                auto [sid, zid, stype] = _unpack_point(point);
+                const SpotData& d = point.data;
 
-                if (_availability_checker && !_availability_checker(sid)) continue;
-                if (spot_type.has_value() && stype != spot_type.value()) continue;
+                if (_availability_checker && !_availability_checker(d.spot_id)) continue;
+                if (spot_type.has_value() && d.spot_type != spot_type.value()) continue;
 
-                return SearchResult{sid, distance, zid, distance};
+                return SearchResult{d.spot_id, distance, d.zone_id, distance};
             }
 
             if (k >= tree_size) return std::nullopt;
@@ -76,17 +73,17 @@ public:
 
         std::vector<SearchResult> results;
         for (auto& [point, distance] : candidates) {
-            auto [spot_id, zone_id, spot_type] = _unpack_point(point);
+            const SpotData& d = point.data;
 
-            if (_availability_checker && !_availability_checker(spot_id)) continue;
+            if (_availability_checker && !_availability_checker(d.spot_id)) continue;
 
             if (criteria.spot_types.has_value()) {
                 auto& types = criteria.spot_types.value();
-                if (std::find(types.begin(), types.end(), spot_type) == types.end()) continue;
+                if (std::find(types.begin(), types.end(), d.spot_type) == types.end()) continue;
             }
 
-            double score = _calculate_score(spot_id, distance, criteria);
-            results.push_back({spot_id, distance, zone_id, score});
+            double score = _calculate_score(d.spot_id, distance, criteria);
+            results.push_back({d.spot_id, distance, d.zone_id, score});
         }
 
         std::sort(results.begin(), results.end(),
@@ -105,21 +102,5 @@ private:
     double _calculate_score(const std::string& spot_id, double distance,
                             const SearchCriteria& criteria) {
         return distance;
-    }
-
-    static std::tuple<std::string, std::string, std::string> _unpack_point(const Point& point) {
-        try {
-            auto& data = std::any_cast<const std::unordered_map<std::string, std::string>&>(point.data);
-            auto sid_it = data.find("spot_id");
-            auto zid_it = data.find("zone_id");
-            auto stype_it = data.find("spot_type");
-            return {
-                sid_it != data.end() ? sid_it->second : "",
-                zid_it != data.end() ? zid_it->second : "",
-                stype_it != data.end() ? stype_it->second : "standard"
-            };
-        } catch (const std::bad_any_cast&) {
-            return {"", "", "standard"};
-        }
     }
 };

@@ -5,17 +5,16 @@
 #include "../src/models/availability_tracker.h"
 
 // Helper: build a QuadTree with parking spot points
-static std::unordered_map<std::string, std::string> make_spot_data(
-        const std::string& spot_id, const std::string& zone_id,
-        const std::string& spot_type = "standard") {
-    return {{"spot_id", spot_id}, {"zone_id", zone_id}, {"spot_type", spot_type}};
+static SpotData make_spot_data(const std::string& spot_id, const std::string& zone_id,
+                               const std::string& spot_type = "standard") {
+    return SpotData{spot_id, zone_id, spot_type};
 }
 
 TEST(SpotSearcher, SearchNearestFindsClosest) {
     QuadTree tree(BoundingBox(0, 0, 100, 100));
-    tree.insert(Point(10, 10, std::any(make_spot_data("S1", "zone-A"))));
-    tree.insert(Point(50, 50, std::any(make_spot_data("S2", "zone-B"))));
-    tree.insert(Point(90, 90, std::any(make_spot_data("S3", "zone-B"))));
+    tree.insert(Point(10, 10, make_spot_data("S1", "zone-A")));
+    tree.insert(Point(50, 50, make_spot_data("S2", "zone-B")));
+    tree.insert(Point(90, 90, make_spot_data("S3", "zone-B")));
 
     // All spots available
     auto checker = [](const std::string&) { return true; };
@@ -28,8 +27,8 @@ TEST(SpotSearcher, SearchNearestFindsClosest) {
 
 TEST(SpotSearcher, SearchNearestSkipsUnavailable) {
     QuadTree tree(BoundingBox(0, 0, 100, 100));
-    tree.insert(Point(10, 10, std::any(make_spot_data("S1", "zone-A"))));
-    tree.insert(Point(20, 20, std::any(make_spot_data("S2", "zone-A"))));
+    tree.insert(Point(10, 10, make_spot_data("S1", "zone-A")));
+    tree.insert(Point(20, 20, make_spot_data("S2", "zone-A")));
 
     // S1 is occupied, only S2 available
     auto checker = [](const std::string& id) { return id != "S1"; };
@@ -42,8 +41,8 @@ TEST(SpotSearcher, SearchNearestSkipsUnavailable) {
 
 TEST(SpotSearcher, SearchNearestReturnsNulloptWhenAllOccupied) {
     QuadTree tree(BoundingBox(0, 0, 100, 100));
-    tree.insert(Point(10, 10, std::any(make_spot_data("S1", "zone-A"))));
-    tree.insert(Point(20, 20, std::any(make_spot_data("S2", "zone-A"))));
+    tree.insert(Point(10, 10, make_spot_data("S1", "zone-A")));
+    tree.insert(Point(20, 20, make_spot_data("S2", "zone-A")));
 
     auto checker = [](const std::string&) { return false; };
     SpotSearcher searcher(&tree, checker);
@@ -69,9 +68,9 @@ TEST(SpotSearcher, SearchNearestNullIndex) {
 
 TEST(SpotSearcher, SearchNearestFiltersByType) {
     QuadTree tree(BoundingBox(0, 0, 100, 100));
-    tree.insert(Point(10, 10, std::any(make_spot_data("S1", "zone-A", "compact"))));
-    tree.insert(Point(15, 15, std::any(make_spot_data("S2", "zone-A", "handicapped"))));
-    tree.insert(Point(80, 80, std::any(make_spot_data("S3", "zone-B", "handicapped"))));
+    tree.insert(Point(10, 10, make_spot_data("S1", "zone-A", "compact")));
+    tree.insert(Point(15, 15, make_spot_data("S2", "zone-A", "handicapped")));
+    tree.insert(Point(80, 80, make_spot_data("S3", "zone-B", "handicapped")));
 
     auto checker = [](const std::string&) { return true; };
     SpotSearcher searcher(&tree, checker);
@@ -84,9 +83,9 @@ TEST(SpotSearcher, SearchNearestFiltersByType) {
 
 TEST(SpotSearcher, SearchReturnsMultipleResults) {
     QuadTree tree(BoundingBox(0, 0, 100, 100));
-    tree.insert(Point(10, 10, std::any(make_spot_data("S1", "zone-A"))));
-    tree.insert(Point(20, 20, std::any(make_spot_data("S2", "zone-A"))));
-    tree.insert(Point(30, 30, std::any(make_spot_data("S3", "zone-B"))));
+    tree.insert(Point(10, 10, make_spot_data("S1", "zone-A")));
+    tree.insert(Point(20, 20, make_spot_data("S2", "zone-A")));
+    tree.insert(Point(30, 30, make_spot_data("S3", "zone-B")));
 
     auto checker = [](const std::string&) { return true; };
     SpotSearcher searcher(&tree, checker);
@@ -104,9 +103,9 @@ TEST(SpotSearcher, SearchReturnsMultipleResults) {
 
 TEST(SpotSearcher, SearchRespectsMaxResults) {
     QuadTree tree(BoundingBox(0, 0, 100, 100));
-    tree.insert(Point(10, 10, std::any(make_spot_data("S1", "zone-A"))));
-    tree.insert(Point(20, 20, std::any(make_spot_data("S2", "zone-A"))));
-    tree.insert(Point(30, 30, std::any(make_spot_data("S3", "zone-B"))));
+    tree.insert(Point(10, 10, make_spot_data("S1", "zone-A")));
+    tree.insert(Point(20, 20, make_spot_data("S2", "zone-A")));
+    tree.insert(Point(30, 30, make_spot_data("S3", "zone-B")));
 
     auto checker = [](const std::string&) { return true; };
     SpotSearcher searcher(&tree, checker);
@@ -120,9 +119,9 @@ TEST(SpotSearcher, SearchRespectsMaxResults) {
 
 TEST(SpotSearcher, SearchFiltersUnavailable) {
     QuadTree tree(BoundingBox(0, 0, 100, 100));
-    tree.insert(Point(10, 10, std::any(make_spot_data("S1", "zone-A"))));
-    tree.insert(Point(20, 20, std::any(make_spot_data("S2", "zone-A"))));
-    tree.insert(Point(30, 30, std::any(make_spot_data("S3", "zone-B"))));
+    tree.insert(Point(10, 10, make_spot_data("S1", "zone-A")));
+    tree.insert(Point(20, 20, make_spot_data("S2", "zone-A")));
+    tree.insert(Point(30, 30, make_spot_data("S3", "zone-B")));
 
     // Only S2 and S3 available
     auto checker = [](const std::string& id) { return id != "S1"; };
@@ -139,9 +138,9 @@ TEST(SpotSearcher, SearchFiltersUnavailable) {
 
 TEST(SpotSearcher, SearchFiltersBySpotType) {
     QuadTree tree(BoundingBox(0, 0, 100, 100));
-    tree.insert(Point(10, 10, std::any(make_spot_data("S1", "zone-A", "compact"))));
-    tree.insert(Point(20, 20, std::any(make_spot_data("S2", "zone-A", "standard"))));
-    tree.insert(Point(30, 30, std::any(make_spot_data("S3", "zone-B", "compact"))));
+    tree.insert(Point(10, 10, make_spot_data("S1", "zone-A", "compact")));
+    tree.insert(Point(20, 20, make_spot_data("S2", "zone-A", "standard")));
+    tree.insert(Point(30, 30, make_spot_data("S3", "zone-B", "compact")));
 
     auto checker = [](const std::string&) { return true; };
     SpotSearcher searcher(&tree, checker);
@@ -158,9 +157,9 @@ TEST(SpotSearcher, SearchFiltersBySpotType) {
 
 TEST(SpotSearcher, SearchWithMaxDistance) {
     QuadTree tree(BoundingBox(0, 0, 100, 100));
-    tree.insert(Point(5, 5, std::any(make_spot_data("S1", "zone-A"))));
-    tree.insert(Point(50, 50, std::any(make_spot_data("S2", "zone-B"))));
-    tree.insert(Point(90, 90, std::any(make_spot_data("S3", "zone-C"))));
+    tree.insert(Point(5, 5, make_spot_data("S1", "zone-A")));
+    tree.insert(Point(50, 50, make_spot_data("S2", "zone-B")));
+    tree.insert(Point(90, 90, make_spot_data("S3", "zone-C")));
 
     auto checker = [](const std::string&) { return true; };
     SpotSearcher searcher(&tree, checker);
@@ -185,8 +184,8 @@ TEST(SpotSearcher, SearchNullIndexReturnsEmpty) {
 
 TEST(SpotSearcher, SearchWithAvailabilityTracker) {
     QuadTree tree(BoundingBox(0, 0, 100, 100));
-    tree.insert(Point(10, 10, std::any(make_spot_data("S1", "zone-A"))));
-    tree.insert(Point(20, 20, std::any(make_spot_data("S2", "zone-A"))));
+    tree.insert(Point(10, 10, make_spot_data("S1", "zone-A")));
+    tree.insert(Point(20, 20, make_spot_data("S2", "zone-A")));
 
     AvailabilityTracker tracker;
     tracker.register_spot("S1", "zone-A", true);

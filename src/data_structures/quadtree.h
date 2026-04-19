@@ -4,7 +4,6 @@
 #ifndef QUADTREE_H
 #define QUADTREE_H
 
-#include <any>
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -12,13 +11,15 @@
 #include <tuple>
 #include <vector>
 
+#include "../models/common_types.h"
+
 // A 2D point with associated data (e.g. spot_id)
 struct Point {
     double x;
     double y;
-    std::any data;
+    SpotData data;
 
-    Point(double x, double y, std::any data = std::any())
+    Point(double x, double y, SpotData data = {})
         : x(x), y(y), data(std::move(data)) {}
 
     double distance_to(double other_x, double other_y) const {

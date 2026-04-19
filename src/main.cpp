@@ -1,6 +1,5 @@
 #include <iostream>
 #include <string>
-#include <unordered_map>
 
 #include "data_structures/quadtree.h"
 #include "data_structures/graph.h"
@@ -45,16 +44,9 @@ int main() {
     BoundingBox bounds(0.0, 0.0, 10.0, 10.0);
     QuadTree tree(bounds);
 
-    std::unordered_map<std::string, std::string> data_s1 = {
-        {"spot_id", "S1"}, {"zone_id", "zone-A"}, {"spot_type", "standard"}};
-    std::unordered_map<std::string, std::string> data_s2 = {
-        {"spot_id", "S2"}, {"zone_id", "zone-A"}, {"spot_type", "handicap"}};
-    std::unordered_map<std::string, std::string> data_s3 = {
-        {"spot_id", "S3"}, {"zone_id", "zone-B"}, {"spot_type", "standard"}};
-
-    tree.insert(Point(1.0, 2.0, data_s1));
-    tree.insert(Point(3.0, 4.0, data_s2));
-    tree.insert(Point(8.0, 9.0, data_s3));
+    tree.insert(Point(1.0, 2.0, SpotData{"S1", "zone-A", "standard"}));
+    tree.insert(Point(3.0, 4.0, SpotData{"S2", "zone-A", "handicap"}));
+    tree.insert(Point(8.0, 9.0, SpotData{"S3", "zone-B", "standard"}));
 
     // --- Search: SpotSearcher ---
     SpotSearcher searcher(&tree, [&tracker](const std::string& id) {
