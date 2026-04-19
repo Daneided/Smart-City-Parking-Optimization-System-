@@ -9,9 +9,8 @@
 #include "../src/algorithms/pathfinder.h"
 #include "../src/algorithms/optimization.h"
 
-static std::unordered_map<std::string, std::string> spot_data(
-        const std::string& id, const std::string& zone) {
-    return {{"spot_id", id}, {"zone_id", zone}, {"spot_type", "standard"}};
+static SpotData spot_data(const std::string& id, const std::string& zone) {
+    return SpotData{id, zone, "standard"};
 }
 
 TEST(Integration, SearchThenRoute) {
@@ -23,9 +22,9 @@ TEST(Integration, SearchThenRoute) {
 
     // Spatial index
     QuadTree tree(BoundingBox(5.0, 5.0, 5.0, 5.0));
-    tree.insert(Point(2.0, 2.0, std::any(spot_data("S1", "zone-A"))));
-    tree.insert(Point(3.0, 3.0, std::any(spot_data("S2", "zone-A"))));
-    tree.insert(Point(8.0, 8.0, std::any(spot_data("S3", "zone-B"))));
+    tree.insert(Point(2.0, 2.0, spot_data("S1", "zone-A")));
+    tree.insert(Point(3.0, 3.0, spot_data("S2", "zone-A")));
+    tree.insert(Point(8.0, 8.0, spot_data("S3", "zone-B")));
 
     // Search
     SpotSearcher searcher(&tree, [&tracker](const std::string& id) {
@@ -85,8 +84,8 @@ TEST(Integration, CallbackTriggersResearch) {
     tracker.register_spot("S2", "zone-A", true);
 
     QuadTree tree(BoundingBox(5.0, 5.0, 5.0, 5.0));
-    tree.insert(Point(1.0, 1.0, std::any(spot_data("S1", "zone-A"))));
-    tree.insert(Point(8.0, 8.0, std::any(spot_data("S2", "zone-A"))));
+    tree.insert(Point(1.0, 1.0, spot_data("S1", "zone-A")));
+    tree.insert(Point(8.0, 8.0, spot_data("S2", "zone-A")));
 
     SpotSearcher searcher(&tree, [&tracker](const std::string& id) {
         return tracker.is_available(id);
@@ -159,8 +158,8 @@ TEST(Integration, FullPipeline) {
     }
 
     QuadTree tree(BoundingBox(10.0, 5.0, 10.0, 5.0));
-    tree.insert(Point(5.0, 5.0, std::any(spot_data("S1", "zone-A"))));
-    tree.insert(Point(15.0, 5.0, std::any(spot_data("S2", "zone-A"))));
+    tree.insert(Point(5.0, 5.0, spot_data("S1", "zone-A")));
+    tree.insert(Point(15.0, 5.0, spot_data("S2", "zone-A")));
 
     Graph graph;
     graph.add_node("entrance", std::make_pair(0.0, 5.0));
