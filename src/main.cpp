@@ -12,7 +12,6 @@
 int main() {
     std::cout << "=== Smart City Parking Optimization System ===" << std::endl;
 
-    // --- Models: parking spots + availability tracking ---
     ParkingSpot spot_a("S1", {1.0, 2.0}, "zone-A");
     ParkingSpot spot_b("S2", {3.0, 4.0}, "zone-A", "handicap");
     ParkingSpot spot_c("S3", {8.0, 9.0}, "zone-B");
@@ -40,7 +39,6 @@ int main() {
     std::cout << "After occupying S2: " << tracker.count_available() << " available" << std::endl;
     std::cout << "Zone-A occupancy rate: " << tracker.get_zone_occupancy_rate("zone-A") << std::endl;
 
-    // --- Spatial index: QuadTree ---
     BoundingBox bounds(0.0, 0.0, 10.0, 10.0);
     QuadTree tree(bounds);
 
@@ -48,7 +46,6 @@ int main() {
     tree.insert(Point(3.0, 4.0, SpotData{"S2", "zone-A", "handicap"}));
     tree.insert(Point(8.0, 9.0, SpotData{"S3", "zone-B", "standard"}));
 
-    // --- Search: SpotSearcher ---
     SpotSearcher searcher(&tree, [&tracker](const std::string& id) {
         return tracker.is_available(id);
     });
@@ -69,7 +66,6 @@ int main() {
         std::cout << "Nearest available: " << nearest->spot_id << std::endl;
     }
 
-    // --- Graph: pathfinding ---
     Graph graph;
     graph.add_node("entrance", {{0.0, 0.0}});
     graph.add_node("intersect1", {{2.0, 2.0}});
@@ -84,7 +80,6 @@ int main() {
     graph.add_edge_undirected("intersect2", "S3", 5.0);
     graph.add_edge_undirected("intersect2", "exit", 7.07);
 
-    // --- Optimization: RouteOptimizer with polymorphic pathfinder ---
     AStarPathfinder astar_pf(&graph);
     DijkstraPathfinder dijkstra_pf(&graph);
 
@@ -130,7 +125,6 @@ int main() {
                   << ", time=" << route_d->estimated_time << "s)" << std::endl;
     }
 
-    // --- Optimization: AllocationOptimizer ---
     AllocationOptimizer allocator;
     std::vector<AllocEntry> requests = {
         {"req1", {0.0, 0.0}},

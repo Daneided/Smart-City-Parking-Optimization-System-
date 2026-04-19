@@ -18,10 +18,6 @@
 #include "algorithms/pathfinder.h"
 #include "algorithms/optimization.h"
 
-// ═══════════════════════════════════════════════════════════════
-//  ANSI escape codes for terminal colors and formatting
-// ═══════════════════════════════════════════════════════════════
-
 namespace ansi {
     constexpr const char* RESET      = "\033[0m";
     constexpr const char* BOLD       = "\033[1m";
@@ -39,10 +35,6 @@ namespace ansi {
     constexpr const char* BG_YELLOW  = "\033[43m";
     constexpr const char* BG_BLUE    = "\033[44m";
 }
-
-// ═══════════════════════════════════════════════════════════════
-//  UI helper functions
-// ═══════════════════════════════════════════════════════════════
 
 static const int BOX_WIDTH = 70;
 
@@ -208,10 +200,6 @@ SpotData make_spot_data(const std::string& spot_id, const std::string& zone_id,
                         const std::string& spot_type = "standard") {
     return SpotData{spot_id, zone_id, spot_type};
 }
-
-// ═══════════════════════════════════════════════════════════════
-//  Welcome screen and menu
-// ═══════════════════════════════════════════════════════════════
 
 void show_welcome() {
     clear_screen();
