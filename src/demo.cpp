@@ -375,7 +375,7 @@ void scenario_1_rush_hour() {
     spots.reserve(spot_defs.size());
 
     for (auto& sd : spot_defs) {
-        spots.emplace_back(sd.id, std::make_pair(sd.x, sd.y), sd.zone);
+        spots.emplace_back(sd.id, Coordinate{sd.x, sd.y}, sd.zone);
         spots.back().register_status_callback(
             [&tracker](const std::string& id, SpotStatus old_s, SpotStatus new_s) {
                 tracker.on_status_change(id, old_s, new_s);
@@ -628,7 +628,7 @@ void scenario_2_stadium_event() {
     spots.reserve(spot_defs.size());
 
     for (auto& sd : spot_defs) {
-        spots.emplace_back(sd.id, std::make_pair(sd.x, sd.y), sd.zone);
+        spots.emplace_back(sd.id, Coordinate{sd.x, sd.y}, sd.zone);
         tracker.register_spot(sd.id, sd.zone, true);
         tree.insert(Point(sd.x, sd.y, make_spot_data(sd.id, sd.zone)));
         if (sd.occupied) {

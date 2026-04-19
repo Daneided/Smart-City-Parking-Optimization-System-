@@ -146,8 +146,8 @@ TEST(Integration, FullPipeline) {
     // Complete flow: create spots, track availability, search, route, allocate, exit
     AvailabilityTracker tracker;
     std::vector<ParkingSpot> spots;
-    spots.emplace_back("S1", std::make_pair(5.0, 5.0), "zone-A");
-    spots.emplace_back("S2", std::make_pair(15.0, 5.0), "zone-A");
+    spots.emplace_back("S1", Coordinate{5.0, 5.0}, "zone-A");
+    spots.emplace_back("S2", Coordinate{15.0, 5.0}, "zone-A");
 
     for (auto& sp : spots) {
         tracker.register_spot(sp.spot_id, sp.zone_id, true);

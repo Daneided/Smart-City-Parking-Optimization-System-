@@ -7,6 +7,8 @@
 #include <optional>
 #include <utility>
 
+#include "common_types.h"
+
 enum class SpotStatus {
     AVAILABLE,
     OCCUPIED,
@@ -40,14 +42,14 @@ using StatusCallback = std::function<void(const std::string&, SpotStatus, SpotSt
 class ParkingSpot {
 public:
     std::string spot_id;
-    std::pair<double, double> location;
+    Coordinate location;
     std::string zone_id;
     std::string spot_type;
     SpotStatus status;
     std::optional<TimePoint> status_changed_at;
 
     ParkingSpot(const std::string& spot_id,
-                std::pair<double, double> location,
+                Coordinate location,
                 const std::string& zone_id,
                 const std::string& spot_type = "standard",
                 SpotStatus status = SpotStatus::AVAILABLE)
@@ -60,8 +62,8 @@ public:
         , _on_status_change(nullptr) {}
 
     bool is_available() const { return status == SpotStatus::AVAILABLE; }
-    double x() const { return location.first; }
-    double y() const { return location.second; }
+    double x() const { return location.x; }
+    double y() const { return location.y; }
 
     void change_status(SpotStatus new_status,
                        std::optional<TimePoint> timestamp = std::nullopt) {
