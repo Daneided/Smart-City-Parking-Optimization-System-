@@ -70,9 +70,7 @@ struct BoundingBox {
     }
 };
 
-// QuadTree for 2D spatial indexing.
-// Stores points and supports insert/remove, range query, and k-nearest neighbor search.
-// Capacity: max points per leaf before subdivision.
+// 2D QuadTree with insert/remove, range query, and k-NN search.
 class QuadTree {
 public:
     QuadTree(const BoundingBox& boundary, int capacity = 4)

@@ -12,10 +12,7 @@
 #include <unordered_set>
 #include <vector>
 
-// Weighted directed graph using adjacency list representation.
-// Nodes represent locations (entrances, intersections, spots, exits).
-// Edges represent drivable paths with distance/time weights.
-// Supports dynamic weight updates for congestion modeling.
+// Weighted directed graph with adjacency-list storage and mutable edge weights.
 class Graph {
 public:
     Graph() = default;
