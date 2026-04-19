@@ -132,11 +132,11 @@ int main() {
 
     // --- Optimization: AllocationOptimizer ---
     AllocationOptimizer allocator;
-    std::vector<std::pair<std::string, std::pair<double, double>>> requests = {
+    std::vector<AllocEntry> requests = {
         {"req1", {0.0, 0.0}},
         {"req2", {7.0, 8.0}},
     };
-    std::vector<std::pair<std::string, std::pair<double, double>>> spots = {
+    std::vector<AllocEntry> spots = {
         {"S1", {1.0, 2.0}},
         {"S3", {8.0, 9.0}},
     };

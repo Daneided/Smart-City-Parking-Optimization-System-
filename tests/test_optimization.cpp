@@ -7,11 +7,11 @@
 
 TEST(Allocation, SimpleAssignment) {
     AllocationOptimizer alloc;
-    std::vector<std::pair<std::string, std::pair<double, double>>> requests = {
+    std::vector<AllocEntry> requests = {
         {"driver1", {0.0, 0.0}},
         {"driver2", {10.0, 10.0}}
     };
-    std::vector<std::pair<std::string, std::pair<double, double>>> spots = {
+    std::vector<AllocEntry> spots = {
         {"S1", {1.0, 1.0}},
         {"S2", {9.0, 9.0}},
         {"S3", {50.0, 50.0}}
@@ -27,12 +27,12 @@ TEST(Allocation, SimpleAssignment) {
 
 TEST(Allocation, MoreDriversThanSpots) {
     AllocationOptimizer alloc;
-    std::vector<std::pair<std::string, std::pair<double, double>>> requests = {
+    std::vector<AllocEntry> requests = {
         {"driver1", {0.0, 0.0}},
         {"driver2", {10.0, 10.0}},
         {"driver3", {20.0, 20.0}}
     };
-    std::vector<std::pair<std::string, std::pair<double, double>>> spots = {
+    std::vector<AllocEntry> spots = {
         {"S1", {1.0, 1.0}}
     };
 
@@ -44,10 +44,10 @@ TEST(Allocation, MoreDriversThanSpots) {
 
 TEST(Allocation, NoSpots) {
     AllocationOptimizer alloc;
-    std::vector<std::pair<std::string, std::pair<double, double>>> requests = {
+    std::vector<AllocEntry> requests = {
         {"driver1", {0.0, 0.0}}
     };
-    std::vector<std::pair<std::string, std::pair<double, double>>> spots;
+    std::vector<AllocEntry> spots;
 
     auto result = alloc.allocate_greedy(requests, spots);
     ASSERT_EQ(result.assignments.size(), 0);
@@ -57,8 +57,8 @@ TEST(Allocation, NoSpots) {
 
 TEST(Allocation, NoDrivers) {
     AllocationOptimizer alloc;
-    std::vector<std::pair<std::string, std::pair<double, double>>> requests;
-    std::vector<std::pair<std::string, std::pair<double, double>>> spots = {
+    std::vector<AllocEntry> requests;
+    std::vector<AllocEntry> spots = {
         {"S1", {1.0, 1.0}}
     };
 
@@ -70,11 +70,11 @@ TEST(Allocation, NoDrivers) {
 
 TEST(Allocation, TotalCostAccumulates) {
     AllocationOptimizer alloc;
-    std::vector<std::pair<std::string, std::pair<double, double>>> requests = {
+    std::vector<AllocEntry> requests = {
         {"driver1", {0.0, 0.0}},
         {"driver2", {10.0, 0.0}}
     };
-    std::vector<std::pair<std::string, std::pair<double, double>>> spots = {
+    std::vector<AllocEntry> spots = {
         {"S1", {3.0, 4.0}},   // dist from driver1 = 5.0
         {"S2", {10.0, 0.0}}   // dist from driver2 = 0.0
     };
@@ -86,11 +86,11 @@ TEST(Allocation, TotalCostAccumulates) {
 TEST(Allocation, GreedyAssignsClosestEach) {
     AllocationOptimizer alloc;
     // Both drivers near S1, but first driver gets it, second gets S2
-    std::vector<std::pair<std::string, std::pair<double, double>>> requests = {
+    std::vector<AllocEntry> requests = {
         {"driver1", {0.0, 0.0}},
         {"driver2", {1.0, 1.0}}
     };
-    std::vector<std::pair<std::string, std::pair<double, double>>> spots = {
+    std::vector<AllocEntry> spots = {
         {"S1", {0.5, 0.5}},
         {"S2", {50.0, 50.0}}
     };
@@ -104,10 +104,10 @@ TEST(Allocation, GreedyAssignsClosestEach) {
 
 TEST(Allocation, SingleDriverSingleSpot) {
     AllocationOptimizer alloc;
-    std::vector<std::pair<std::string, std::pair<double, double>>> requests = {
+    std::vector<AllocEntry> requests = {
         {"driver1", {3.0, 4.0}}
     };
-    std::vector<std::pair<std::string, std::pair<double, double>>> spots = {
+    std::vector<AllocEntry> spots = {
         {"S1", {0.0, 0.0}}
     };
 

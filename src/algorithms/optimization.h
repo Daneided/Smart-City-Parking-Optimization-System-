@@ -10,7 +10,13 @@
 #include <limits>
 
 #include "../data_structures/graph.h"
+#include "../models/common_types.h"
 #include "pathfinder.h"
+
+struct AllocEntry {
+    std::string id;
+    Coordinate loc;
+};
 
 struct Route {
     std::vector<std::string> nodes;
@@ -92,17 +98,17 @@ public:
     AllocationOptimizer() = default;
 
     AllocationResult allocate_greedy(
-            const std::vector<std::pair<std::string, std::pair<double, double>>>& requests,
-            const std::vector<std::pair<std::string, std::pair<double, double>>>& available_spots) {
+            const std::vector<AllocEntry>& requests,
+            const std::vector<AllocEntry>& available_spots) {
         std::unordered_map<std::string, std::string> assignments;
         std::vector<std::string> unassigned;
         double total_cost = 0.0;
 
         auto remaining = available_spots;
 
-        for (const auto& [req_id, req_loc] : requests) {
+        for (const auto& req : requests) {
             if (remaining.empty()) {
-                unassigned.push_back(req_id);
+                unassigned.push_back(req.id);
                 continue;
             }
 
@@ -110,16 +116,14 @@ public:
             double best_dist = std::numeric_limits<double>::infinity();
 
             for (size_t i = 0; i < remaining.size(); ++i) {
-                double dx = req_loc.first - remaining[i].second.first;
-                double dy = req_loc.second - remaining[i].second.second;
-                double dist = std::sqrt(dx * dx + dy * dy);
+                double dist = req.loc.distance_to(remaining[i].loc);
                 if (dist < best_dist) {
                     best_dist = dist;
                     best_idx = i;
                 }
             }
 
-            assignments[req_id] = remaining[best_idx].first;
+            assignments[req.id] = remaining[best_idx].id;
             total_cost += best_dist;
             remaining.erase(remaining.begin() + static_cast<long>(best_idx));
         }

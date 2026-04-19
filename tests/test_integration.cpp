@@ -52,11 +52,11 @@ TEST(Integration, SearchThenRoute) {
 TEST(Integration, AllocateThenRoute) {
     // Allocate spots to drivers
     AllocationOptimizer allocator;
-    std::vector<std::pair<std::string, std::pair<double, double>>> requests = {
+    std::vector<AllocEntry> requests = {
         {"driver1", {0.0, 0.0}},
         {"driver2", {10.0, 10.0}},
     };
-    std::vector<std::pair<std::string, std::pair<double, double>>> spots = {
+    std::vector<AllocEntry> spots = {
         {"S1", {1.0, 1.0}},
         {"S2", {9.0, 9.0}},
     };

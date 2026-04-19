@@ -685,12 +685,12 @@ void scenario_2_stadium_event() {
     sleep_ms(300);
 
     // Build request and spot vectors for the allocator
-    std::vector<std::pair<std::string, std::pair<double, double>>> requests;
+    std::vector<AllocEntry> requests;
     for (auto& d : drivers) {
         requests.push_back({d.name, {d.x, d.y}});
     }
 
-    std::vector<std::pair<std::string, std::pair<double, double>>> avail_spots;
+    std::vector<AllocEntry> avail_spots;
     for (auto& sd : spot_defs) {
         if (!sd.occupied) {
             avail_spots.push_back({sd.id, {sd.x, sd.y}});
@@ -750,7 +750,7 @@ void scenario_2_stadium_event() {
 
     // After first allocation, 4 spots left (12 available - 8 assigned)
     // Build remaining spots
-    std::vector<std::pair<std::string, std::pair<double, double>>> remaining_spots;
+    std::vector<AllocEntry> remaining_spots;
     std::unordered_set<std::string> assigned_set;
     for (auto& [name, spot] : result.assignments) assigned_set.insert(spot);
     for (auto& sd : spot_defs) {
@@ -759,7 +759,7 @@ void scenario_2_stadium_event() {
         }
     }
 
-    std::vector<std::pair<std::string, std::pair<double, double>>> late_requests = {
+    std::vector<AllocEntry> late_requests = {
         {"Irene",  {20, 30}},
         {"Jack",   {25, 10}},
         {"Karen",  {18, 25}},
@@ -771,7 +771,7 @@ void scenario_2_stadium_event() {
     for (auto& [name, loc] : late_requests) {
         std::cout << "  " << ansi::BOLD << ">> " << ansi::RESET
                   << std::left << std::setw(8) << name
-                  << ansi::DIM << " at (" << loc.first << ", " << loc.second << ")"
+                  << ansi::DIM << " at (" << loc.x << ", " << loc.y << ")"
                   << ansi::RESET << "\n";
         sleep_ms(80);
     }
@@ -788,7 +788,7 @@ void scenario_2_stadium_event() {
             for (auto& sd : spot_defs) {
                 if (sd.id == it->second) { sx = sd.x; sy = sd.y; break; }
             }
-            double dist = std::sqrt((loc.first-sx)*(loc.first-sx) + (loc.second-sy)*(loc.second-sy));
+            double dist = std::sqrt((loc.x-sx)*(loc.x-sx) + (loc.y-sy)*(loc.y-sy));
             std::ostringstream ds;
             ds << std::fixed << std::setprecision(2) << dist;
             print_table_row({name, it->second, ds.str()}, widths2);
