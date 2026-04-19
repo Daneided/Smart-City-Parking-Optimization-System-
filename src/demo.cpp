@@ -201,6 +201,29 @@ SpotData make_spot_data(const std::string& spot_id, const std::string& zone_id,
     return SpotData{spot_id, zone_id, spot_type};
 }
 
+struct SpotDef {
+    std::string id;
+    double x;
+    double y;
+    std::string zone;
+    bool occupied;
+};
+
+static std::string fmt_dist(double d) {
+    std::ostringstream s;
+    s << std::fixed << std::setprecision(2) << d << " m";
+    return s.str();
+}
+
+static std::string fmt_path(const std::vector<std::string>& p) {
+    std::string s;
+    for (size_t i = 0; i < p.size(); ++i) {
+        if (i > 0) s += " > ";
+        s += p[i];
+    }
+    return s;
+}
+
 void show_welcome() {
     clear_screen();
     std::cout << "\n\n";
@@ -344,7 +367,6 @@ void scenario_1_rush_hour() {
     print_subheader("Step 1: Initializing Parking Infrastructure");
 
     // Create spots: Zone A (8 spots, 7 occupied), Zone B (8, 4 occupied), Zone C (8, all free)
-    struct SpotDef { std::string id; double x; double y; std::string zone; bool occupied; };
     std::vector<SpotDef> spot_defs = {
         {"A1",2,2,"Zone-A",true},  {"A2",4,2,"Zone-A",true},  {"A3",6,2,"Zone-A",true},
         {"A4",8,2,"Zone-A",true},  {"A5",2,4,"Zone-A",true},  {"A6",4,4,"Zone-A",true},
@@ -497,22 +519,11 @@ void scenario_1_rush_hour() {
     print_table_header({"Metric", "Dijkstra", "A*"}, cmp_widths);
 
     // Distance row
-    auto fmt_dist = [](double d) {
-        std::ostringstream s; s << std::fixed << std::setprecision(2) << d << " m"; return s.str();
-    };
     print_table_row({"Distance",
         dijk_result ? fmt_dist(dijk_result->second) : "N/A",
         astar_result ? fmt_dist(astar_result->second) : "N/A"}, cmp_widths);
 
     // Path row
-    auto fmt_path = [](const std::vector<std::string>& p) {
-        std::string s;
-        for (size_t i = 0; i < p.size(); ++i) {
-            if (i > 0) s += " > ";
-            s += p[i];
-        }
-        return s;
-    };
     print_table_row({"Path",
         dijk_result ? fmt_path(dijk_result->first) : "N/A",
         astar_result ? fmt_path(astar_result->first) : "N/A"}, cmp_widths);
@@ -594,7 +605,6 @@ void scenario_2_stadium_event() {
 
     print_subheader("Step 1: Stadium Parking Lot -- Current Status");
 
-    struct SpotDef { std::string id; double x; double y; std::string zone; bool occupied; };
     std::vector<SpotDef> spot_defs = {
         // Zone North (near stadium) — 3 of 5 occupied
         {"N1",5,35,"North",true},  {"N2",10,35,"North",true}, {"N3",15,35,"North",true},
@@ -1012,21 +1022,10 @@ void scenario_3_smart_rerouting() {
     print_table_header({"", "BEFORE Congestion", "AFTER Congestion"}, cmp_widths);
 
     // Path rows
-    auto fmt_path = [](const std::vector<std::string>& p) {
-        std::string s;
-        for (size_t i = 0; i < p.size(); ++i) {
-            if (i > 0) s += " > ";
-            s += p[i];
-        }
-        return s;
-    };
     print_table_row({"Route",
         route1 ? fmt_path(route1->nodes) : "N/A",
         route2 ? fmt_path(route2->nodes) : "N/A"}, cmp_widths);
 
-    auto fmt_dist = [](double d) {
-        std::ostringstream s; s << std::fixed << std::setprecision(2) << d << " m"; return s.str();
-    };
     print_table_row({"Distance",
         route1 ? fmt_dist(route1->total_distance) : "N/A",
         route2 ? fmt_dist(route2->total_distance) : "N/A"}, cmp_widths);
