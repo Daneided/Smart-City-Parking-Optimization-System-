@@ -6,7 +6,6 @@
 #include <functional>
 #include <optional>
 #include <utility>
-#include <unordered_map>
 
 enum class SpotStatus {
     AVAILABLE,
@@ -46,7 +45,6 @@ public:
     std::string spot_type;
     SpotStatus status;
     std::optional<TimePoint> status_changed_at;
-    std::unordered_map<std::string, std::string> metadata;
 
     ParkingSpot(const std::string& spot_id,
                 std::pair<double, double> location,
