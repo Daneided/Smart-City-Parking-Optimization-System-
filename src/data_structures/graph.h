@@ -1,5 +1,4 @@
 // Weighted graph for parking area navigation
-// Used by RouteOptimizer for A*/Dijkstra pathfinding
 
 #ifndef GRAPH_H
 #define GRAPH_H
