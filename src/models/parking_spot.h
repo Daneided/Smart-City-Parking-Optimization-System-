@@ -99,13 +99,6 @@ public:
         return _status_history;
     }
 
-    double duration_in_current_status() const {
-        if (!status_changed_at.has_value()) return 0.0;
-        auto now = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsed = now - status_changed_at.value();
-        return elapsed.count();
-    }
-
     void register_status_callback(StatusCallback callback) {
         _on_status_change = std::move(callback);
     }
