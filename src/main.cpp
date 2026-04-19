@@ -4,7 +4,6 @@
 
 #include "data_structures/quadtree.h"
 #include "data_structures/graph.h"
-#include "data_structures/priority_queue.h"
 #include "models/parking_spot.h"
 #include "models/availability_tracker.h"
 #include "algorithms/search.h"
