@@ -10,7 +10,7 @@
 #include "../data_structures/quadtree.h"
 
 struct SearchCriteria {
-    std::pair<double, double> location;
+    Coordinate location;
     double max_distance = std::numeric_limits<double>::infinity();
     std::optional<std::vector<std::string>> spot_types = std::nullopt;
     int max_results = 10;
@@ -31,15 +31,15 @@ public:
         , _availability_checker(std::move(availability_checker)) {}
 
     std::optional<SearchResult> search_nearest(
-            std::pair<double, double> location,
+            Coordinate location,
             std::optional<std::string> spot_type = std::nullopt) {
         if (_spatial_index == nullptr) return std::nullopt;
 
         int tree_size = _spatial_index->size();
         if (tree_size == 0) return std::nullopt;
 
-        double x = location.first;
-        double y = location.second;
+        double x = location.x;
+        double y = location.y;
         int k = std::min(10, tree_size);
 
         while (true) {
@@ -61,8 +61,8 @@ public:
     std::vector<SearchResult> search(const SearchCriteria& criteria) {
         if (_spatial_index == nullptr) return {};
 
-        double x = criteria.location.first;
-        double y = criteria.location.second;
+        double x = criteria.location.x;
+        double y = criteria.location.y;
 
         std::vector<std::pair<Point, double>> candidates;
         if (criteria.max_distance < std::numeric_limits<double>::infinity()) {
